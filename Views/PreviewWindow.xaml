@@ -19,10 +19,10 @@
                    Foreground="#4CAF50"
                    Margin="0,0,0,10"/>
 
-        <!-- Tabla igual a la principal -->
+        <!-- Tabla con columnas definidas -->
         <DataGrid Grid.Row="1" 
                   x:Name="dgPreview"
-                  AutoGenerateColumns="True"
+                  AutoGenerateColumns="False"
                   AlternatingRowBackground="#F5F5F5"
                   Margin="0,0,0,10"
                   CanUserAddRows="False"
@@ -31,7 +31,36 @@
                   CanUserResizeColumns="True"
                   CanUserSortColumns="True"
                   GridLinesVisibility="All"
-                  RowHeaderWidth="0"/>
+                  RowHeaderWidth="0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Shipment Number" Binding="{Binding ShipmentNumber}" Width="130"/>
+                <DataGridTextColumn Header="Delivery" Binding="{Binding Delivery}" Width="100"/>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150"/>
+                <DataGridTextColumn Header="Shipment type" Binding="{Binding ShipmentType}" Width="100"/>
+                <DataGridTextColumn Header="Ship-to party" Binding="{Binding ShipToParty}" Width="120"/>
+                <DataGridTextColumn Header="Vehicle Type" Binding="{Binding VehicleType}" Width="100"/>
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="150"/>
+                <DataGridTextColumn Header="Service agent" Binding="{Binding ServiceAgent}" Width="120"/>
+                <DataGridTextColumn Header="Name 1" Binding="{Binding Name1}" Width="150"/>
+                <DataGridTextColumn Header="Delivery Date" Binding="{Binding DeliveryDate}" Width="120"/>
+                <DataGridTextColumn Header="Weight" Binding="{Binding Weight}" Width="80"/>
+                <DataGridTextColumn Header="Volume" Binding="{Binding Volume}" Width="80"/>
+                <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="80"/>
+                <DataGridTextColumn Header="Order Number" Binding="{Binding OrderNumber}" Width="120"/>
+                <DataGridTextColumn Header="Street" Binding="{Binding Street}" Width="200"/>
+                <DataGridTextColumn Header="City" Binding="{Binding City}" Width="120"/>
+                <DataGridTextColumn Header="Fecha1" Binding="{Binding Fecha1}" Width="100"/>
+                <DataGridTextColumn Header="Fecha2" Binding="{Binding Fecha2}" Width="100"/>
+                <DataGridTextColumn Header="Tipo1" Binding="{Binding Tipo1}" Width="80"/>
+                <DataGridTextColumn Header="Tipo2" Binding="{Binding Tipo2}" Width="80"/>
+                <DataGridTextColumn Header="Factura" Binding="{Binding Factura}" Width="120"/>
+                <DataGridTextColumn Header="Secuencia" Binding="{Binding Secuencia}" Width="80"/>
+                <DataGridTextColumn Header="Vhc" Binding="{Binding Vhc}" Width="80"/>
+                <DataGridTextColumn Header="Costo Estándar" Binding="{Binding CostoEstandar}" Width="100"/>
+                <DataGridTextColumn Header="Id Carga" Binding="{Binding IdCarga}" Width="100"/>
+                <DataGridTextColumn Header="Centro Destino" Binding="{Binding CentroDestino}" Width="150"/>
+            </DataGrid.Columns>
+        </DataGrid>
 
         <!-- Botón Exportar -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,5">

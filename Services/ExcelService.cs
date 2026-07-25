@@ -117,7 +117,8 @@ namespace GestorEnvios.Services
                 { "Vhc", d => d.Vhc },
                 { "Costo Estándar", d => d.CostoEstandar },
                 { "Id Carga", d => d.IdCarga },
-                { "Centro Destino", d => d.CentroDestino }
+                { "Centro Destino", d => d.CentroCodigo ?? d.CentroDestino }
+                //{ "Centro Destino", d => d.CentroDestino }
             };
 
             int col = 1;

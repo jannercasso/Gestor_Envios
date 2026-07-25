@@ -195,7 +195,6 @@ namespace GestorEnvios.Services
         foreach (var dataRecord in Models.DataRecords)
         {
             var delivery = dataRecord.Delivery ?? "";
-            bool found100 = false;
 
             if (enviosDict.ContainsKey(delivery))
             {
@@ -207,10 +206,6 @@ namespace GestorEnvios.Services
                     {
                         var secuencia = envioInfo.Secuencia.Value;
                         
-                        if (secuencia == 100)
-                        {
-                            found100 = true;
-                        }
                         
                         if (secuencia == 200 || secuencia == 100)
                         {
@@ -232,31 +227,39 @@ namespace GestorEnvios.Services
         }
     }
 
-        private void AgregarCentroDestino()
+    private void AgregarCentroDestino()
+    {
+        // Diccionario para guardar código y nombre
+        var centrosDict = new Dictionary<string, (string Codigo, string Nombre)>();
+        
+        foreach (var centro in Models.CentrosRecords)
         {
-            var centrosDict = new Dictionary<string, string>();
-            foreach (var centro in Models.CentrosRecords)
+            if (!string.IsNullOrEmpty(centro.Ciudad) && !centrosDict.ContainsKey(centro.Ciudad))
             {
-                if (!string.IsNullOrEmpty(centro.Ciudad) && !centrosDict.ContainsKey(centro.Ciudad))
-                {
-                    centrosDict[centro.Ciudad] = centro.CodigoParaRecogidas ?? "Validar_Ciudad_Destino";
-                }
-            }
-
-            foreach (var record in Models.Resultados.Where(r => r.Secuencia == 200))
-            {
-                var ciudad = record.City?.ToUpper().Trim() ?? "";
+                var codigo = centro.CodigoParaRecogidas ?? "";
+                var nombre = centro.Centro ?? "Validar_Ciudad_Destino";
                 
-                if (!string.IsNullOrEmpty(ciudad) && centrosDict.ContainsKey(ciudad))
-                {
-                    record.CentroDestino = centrosDict[ciudad];
-                }
-                else
-                {
-                    record.CentroDestino = "Validar_Ciudad_Destino";
-                }
+                centrosDict[centro.Ciudad] = (codigo, nombre);
             }
         }
+
+        foreach (var record in Models.Resultados.Where(r => r.Secuencia == 200))
+        {
+            var ciudad = record.City?.ToUpper().Trim() ?? "";
+            
+            if (!string.IsNullOrEmpty(ciudad) && centrosDict.ContainsKey(ciudad))
+            {
+                var info = centrosDict[ciudad];
+                record.CentroDestino = info.Nombre;   // Para UI: "COTA", "IBAGUE"
+                record.CentroCodigo = info.Codigo;    // Para Exportar: "102", "105"
+            }
+            else
+            {
+                record.CentroDestino = "Validar_Ciudad_Destino";
+                record.CentroCodigo = "";
+            }
+        }
+    }
 
         private void EliminarDuplicadosFactura()
         {

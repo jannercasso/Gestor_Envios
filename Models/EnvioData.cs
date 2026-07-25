@@ -2,7 +2,7 @@ namespace GestorEnvios.Models
 {
     public class EnvioData
     {
-        // Columnas de DATA (igual que tu macro)
+        // Columnas de DATA
         public string? ShipmentNumber { get; set; }
         public string? Delivery { get; set; }
         public string? Name { get; set; }
@@ -31,10 +31,11 @@ namespace GestorEnvios.Models
         public double? CostoEstandar { get; set; }
         public string? IdCarga { get; set; }
         
-        // Centro Destino (calculado)
-        public string? CentroDestino { get; set; }
+        // Centro Destino
+        public string? CentroDestino { get; set; }   // Para UI (nombre)
+        public string? CentroCodigo { get; set; }    // Para Exportar (código)
         
-        // Para control de duplicados (como la macro)
+        // Para control de duplicados
         public bool EsDuplicado { get; set; }
     }
 
