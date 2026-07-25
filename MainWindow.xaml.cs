@@ -140,7 +140,7 @@ namespace GestorEnvios
                 _processor.EntregasNoEncontradas.Clear();
                 
                 dgDatos.ItemsSource = null;
-                txtArchivo.Text = "Cargar Documento";
+                txtArchivo.Text = "Selecciona el archivo Excel que contiene las 3 hojas...";
                 
                 btnProcesar.IsEnabled = false;
                 
@@ -157,7 +157,7 @@ namespace GestorEnvios
             {
                 var preview = new PreviewWindow(_processor.Models.Resultados.ToList());
                 preview.Owner = this;
-                preview.Show();
+                preview.ShowDialog();  // <-- CAMBIADO: ahora es modal
             }
             else
             {

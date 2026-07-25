@@ -57,6 +57,7 @@ namespace GestorEnvios.Services
                 CargarCentros(hojas.ElementAt(2).Value);
         }
 
+
         private void CargarData(List<Dictionary<string, object>> dataRecords)
         {
             foreach (var row in dataRecords)
@@ -64,6 +65,9 @@ namespace GestorEnvios.Services
                 var values = row.Values.ToList();
                 if (values.Count >= 21)
                 {
+                    var pesoOriginal = TryParseDouble(values[10]);
+                    var cajasOriginal = TryParseCount(values[12]);
+                    
                     Models.DataRecords.Add(new EnvioData
                     {
                         ShipmentNumber = values[0]?.ToString(),
@@ -76,9 +80,9 @@ namespace GestorEnvios.Services
                         ServiceAgent = values[7]?.ToString(),
                         Name1 = values[8]?.ToString(),
                         DeliveryDate = values[9]?.ToString(),
-                        Weight = TryParseDouble(values[10]),
+                        Weight = NormalizarPeso(TryParseDouble(values[10])),
                         Volume = TryParseDouble(values[11]),
-                        Count = TryParseInt(values[12]),
+                        Count = cajasOriginal,
                         OrderNumber = values[13]?.ToString(),
                         Street = values[14]?.ToString(),
                         City = values[15]?.ToString(),
@@ -91,7 +95,6 @@ namespace GestorEnvios.Services
                 }
             }
         }
-
         private void CargarEnvios(List<Dictionary<string, object>> enviosRecords)
         {
             foreach (var row in enviosRecords)
@@ -378,5 +381,45 @@ namespace GestorEnvios.Services
             if (value == null) return null;
             return double.TryParse(value.ToString(), out double result) ? result : (double?)null;
         }
+
+        private int TryParseCount(object value)
+        {
+            if (value == null) return 0;
+            
+            var strValue = value.ToString()?.Trim() ?? "";
+            
+            // Intentar como entero
+            if (int.TryParse(strValue, out int intResult))
+                return intResult;
+            
+            // Intentar como double
+            if (double.TryParse(strValue, System.Globalization.NumberStyles.Any, 
+                                System.Globalization.CultureInfo.InvariantCulture, 
+                                out double doubleResult))
+            {
+                // Si el valor es muy pequeño, redondear a 0
+                if (doubleResult < 0.001) return 0;
+                
+                // Redondear siempre hacia arriba (techo)
+                // 0.5 → 1, 1.001 → 2, 0.167 → 1, 1.333 → 2
+                return (int)Math.Ceiling(doubleResult);
+            }
+            
+            return 0;
+        }
+        private double NormalizarPeso(double peso)
+        {
+            if (peso <= 0) return 0;
+            
+            // Si es un número entero, está en gramos → convertir a toneladas
+            if (Math.Abs(peso % 1) < 0.0001)
+            {
+                return peso / 1000000.0;  // gramos → toneladas
+            }
+            
+            // Si tiene decimales, ya está en toneladas (mantener)
+            return peso;
+        }        
+
     }
 }
