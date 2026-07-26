@@ -97,9 +97,9 @@ namespace GestorEnvios
                 dgDatos.ItemsSource = null;
                 dgDatos.ItemsSource = _processor.Models.Resultados;
 
-                var count = _processor.Models.Resultados.Count;
-                var count200 = _processor.Models.Resultados.Count(r => r.Secuencia == 200);
-                var count100 = _processor.Models.Resultados.Count(r => r.Secuencia == 100);
+                // 🔹 CORREGIDO: se usa ObtenerResumenCompleto() para que los registros
+                // con Secuencia == null (originalmente 100) se cuenten correctamente
+                var (count, count100, count200) = _processor.ObtenerResumenCompleto();
                 
                 btnProcesar.IsEnabled = true;
 
@@ -140,7 +140,7 @@ namespace GestorEnvios
                 _processor.EntregasNoEncontradas.Clear();
                 
                 dgDatos.ItemsSource = null;
-                txtArchivo.Text = "Selecciona el archivo Excel que contiene las 3 hojas...";
+                txtArchivo.Text = "Seleccionar Documento";
                 
                 btnProcesar.IsEnabled = false;
                 

@@ -1,27 +1,214 @@
 <Window x:Class="GestorEnvios.Views.PreviewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:GestorEnvios.Controls"
         Title="👁️ Vista Previa - Datos Procesados" 
         WindowState="Normal"
         Height="600" Width="1100"
         WindowStartupLocation="CenterOwner">
     
     <Window.Resources>
-        <!-- Estilos para ScrollBars más delgados -->
+        <!-- ============================================ -->
+        <!-- ESTILO SCROLLBAR ÚNICO (VERTICAL + HORIZONTAL) -->
+        <!-- Estilo IMPLÍCITO (sin x:Key) para que se       -->
+        <!-- aplique también a las scrollbars internas del  -->
+        <!-- DataGrid. Cambia de template según Orientation -->
+        <!-- ============================================ -->
         <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="Height" Value="10"/>
-            <Setter Property="Background" Value="#F0F0F0"/>
-            <Setter Property="BorderBrush" Value="#D0D0D0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        
-        <Style TargetType="Thumb">
-            <Setter Property="Background" Value="#C0C0C0"/>
-            <Setter Property="BorderBrush" Value="#A0A0A0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="Height" Value="30"/>
+            <!-- Solo se fija el ANCHO: el alto queda libre (Auto) para   -->
+            <!-- que la barra vertical se estire de arriba a abajo.      -->
+            <Setter Property="Width" Value="12"/>
+
+            <!-- Template por defecto: VERTICAL -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="#F5F5F5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="14"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="14"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Flecha arriba -->
+                            <RepeatButton Grid.Row="0"
+                                          Command="ScrollBar.LineUpCommand"
+                                          Background="#F0F0F0"
+                                          BorderBrush="#D0D0D0"
+                                          BorderThickness="0,0,0,1"
+                                          Cursor="Hand"
+                                          Content="▲"
+                                          FontSize="8"
+                                          Foreground="#666666"/>
+
+                            <!-- TRACK -->
+                            <Track x:Name="PART_Track"
+                                   Grid.Row="1"
+                                   Orientation="Vertical"
+                                   IsDirectionReversed="True">
+                                <!-- IsDirectionReversed=True es lo que corrige el   -->
+                                <!-- sentido: el valor mínimo queda arriba y el      -->
+                                <!-- thumb baja al aumentar el valor (como debe ser).-->
+
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand"
+                                                  Background="Transparent"
+                                                  BorderThickness="0"/>
+                                </Track.DecreaseRepeatButton>
+
+                                <Track.Thumb>
+                                    <Thumb Background="#C8C8C8"
+                                           BorderBrush="#A0A0A0"
+                                           BorderThickness="1"
+                                           Width="6"
+                                           MinHeight="30">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                                        CornerRadius="3"
+                                                        Width="{TemplateBinding Width}"
+                                                        Height="{TemplateBinding Height}"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#A8A8A8"/>
+                                                        <Setter Property="Width" Value="7"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#32AC5C"/>
+                                                        <Setter Property="Width" Value="7"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand"
+                                                  Background="Transparent"
+                                                  BorderThickness="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+
+                            <!-- Flecha abajo -->
+                            <RepeatButton Grid.Row="2"
+                                          Command="ScrollBar.LineDownCommand"
+                                          Background="#F0F0F0"
+                                          BorderBrush="#D0D0D0"
+                                          BorderThickness="0,1,0,0"
+                                          Cursor="Hand"
+                                          Content="▼"
+                                          FontSize="8"
+                                          Foreground="#666666"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+
+            <!-- Cuando la orientación es HORIZONTAL, se reemplaza el template -->
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <!-- Aquí se invierte la lógica: se libera el ANCHO (Auto) -->
+                    <!-- y se fija solo el ALTO, para que se estire a lo ancho. -->
+                    <Setter Property="Width" Value="NaN"/>
+                    <Setter Property="Height" Value="12"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ScrollBar">
+                                <Grid Background="#F5F5F5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="14"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="14"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Flecha izquierda -->
+                                    <RepeatButton Grid.Column="0"
+                                                  Command="ScrollBar.LineLeftCommand"
+                                                  Background="#F0F0F0"
+                                                  BorderBrush="#D0D0D0"
+                                                  BorderThickness="0,0,1,0"
+                                                  Cursor="Hand"
+                                                  Content="◄"
+                                                  FontSize="8"
+                                                  Foreground="#666666"/>
+
+                                    <!-- TRACK Horizontal -->
+                                    <Track x:Name="PART_Track"
+                                           Grid.Column="1"
+                                           Orientation="Horizontal"
+                                           IsDirectionReversed="False">
+                                        <!-- En horizontal NO se invierte: el mínimo   -->
+                                        <!-- queda a la izquierda, como es natural.    -->
+
+                                        <Track.DecreaseRepeatButton>
+                                            <RepeatButton Command="ScrollBar.PageLeftCommand"
+                                                          Background="Transparent"
+                                                          BorderThickness="0"/>
+                                        </Track.DecreaseRepeatButton>
+
+                                        <Track.Thumb>
+                                            <Thumb Background="#C8C8C8"
+                                                   BorderBrush="#A0A0A0"
+                                                   BorderThickness="1"
+                                                   Height="6"
+                                                   MinWidth="30">
+                                                <Thumb.Template>
+                                                    <ControlTemplate TargetType="Thumb">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="3"
+                                                                Width="{TemplateBinding Width}"
+                                                                Height="{TemplateBinding Height}"/>
+                                                    </ControlTemplate>
+                                                </Thumb.Template>
+                                                <Thumb.Style>
+                                                    <Style TargetType="Thumb">
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#A8A8A8"/>
+                                                                <Setter Property="Height" Value="7"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsDragging" Value="True">
+                                                                <Setter Property="Background" Value="#32AC5C"/>
+                                                                <Setter Property="Height" Value="7"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Thumb.Style>
+                                            </Thumb>
+                                        </Track.Thumb>
+
+                                        <Track.IncreaseRepeatButton>
+                                            <RepeatButton Command="ScrollBar.PageRightCommand"
+                                                          Background="Transparent"
+                                                          BorderThickness="0"/>
+                                        </Track.IncreaseRepeatButton>
+                                    </Track>
+
+                                    <!-- Flecha derecha -->
+                                    <RepeatButton Grid.Column="2"
+                                                  Command="ScrollBar.LineRightCommand"
+                                                  Background="#F0F0F0"
+                                                  BorderBrush="#D0D0D0"
+                                                  BorderThickness="1,0,0,0"
+                                                  Cursor="Hand"
+                                                  Content="►"
+                                                  FontSize="8"
+                                                  Foreground="#666666"/>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
     
@@ -39,10 +226,9 @@
                    Foreground="#4CAF50"
                    Margin="0,0,0,10"/>
 
-        <!-- Tabla - SIN AlternatingRowBackground -->
         <DataGrid Grid.Row="1" 
                   x:Name="dgPreview"
-                  AutoGenerateColumns="False"
+                  AutoGenerateColumns="True"
                   Margin="0,0,0,10"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
@@ -52,30 +238,26 @@
                   GridLinesVisibility="All"
                   RowHeaderWidth="0"
                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                  ScrollViewer.VerticalScrollBarVisibility="Auto">
-
-            <!-- Estilo para encabezados -->
-            <DataGrid.ColumnHeaderStyle>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#32AC5C"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="Height" Value="35"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    <Setter Property="VerticalContentAlignment" Value="Center"/>
-                    <Setter Property="BorderBrush" Value="#2A8F4A"/>
-                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                </Style>
-            </DataGrid.ColumnHeaderStyle>
-
-            <!-- Estilo para filas y celdas -->
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  AutoGeneratingColumn="DgPreview_AutoGeneratingColumn"
+                  MinColumnWidth="120"
+                  MaxColumnWidth="300">
+            
+            <!-- UN SOLO BLOQUE DE RESOURCES -->
             <DataGrid.Resources>
-                <!-- Desactivar el color azul por defecto -->
+                <!-- Forzar estilo horizontal -->
+                <Style TargetType="ScrollViewer">
+                    <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+                    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                    <Setter Property="PanningMode" Value="Both"/>
+                </Style>
+                
+                <!-- Colores de selección -->
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#32AC5C"/>
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White"/>
                 <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#32AC5C"/>
                 
-                <!-- Estilo para celdas - Hereda el color de la fila -->
+                <!-- Estilo para celdas -->
                 <Style TargetType="DataGridCell">
                     <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Background}"/>
                     <Style.Triggers>
@@ -92,6 +274,10 @@
                 
                 <!-- Estilo para filas -->
                 <Style TargetType="DataGridRow">
+                    <!-- El blanco va como Setter de Style (no como valor local  -->
+                    <!-- RowBackground del DataGrid), para que el trigger de     -->
+                    <!-- IsMouseOver de abajo SÍ pueda sobrescribirlo.           -->
+                    <Setter Property="Background" Value="White"/>
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Background" Value="#32AC5C"/>
@@ -105,37 +291,22 @@
                 </Style>
             </DataGrid.Resources>
 
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Shipment Number" Binding="{Binding ShipmentNumber}" Width="130"/>
-                <DataGridTextColumn Header="Delivery" Binding="{Binding Delivery}" Width="100"/>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150"/>
-                <DataGridTextColumn Header="Shipment type" Binding="{Binding ShipmentType}" Width="100"/>
-                <DataGridTextColumn Header="Ship-to party" Binding="{Binding ShipToParty}" Width="120"/>
-                <DataGridTextColumn Header="Vehicle Type" Binding="{Binding VehicleType}" Width="100"/>
-                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="150"/>
-                <DataGridTextColumn Header="Service agent" Binding="{Binding ServiceAgent}" Width="120"/>
-                <DataGridTextColumn Header="Name 1" Binding="{Binding Name1}" Width="150"/>
-                <DataGridTextColumn Header="Delivery Date" Binding="{Binding DeliveryDate}" Width="120"/>
-                <DataGridTextColumn Header="Weight" Binding="{Binding Weight}" Width="80"/>
-                <DataGridTextColumn Header="Volume" Binding="{Binding Volume}" Width="80"/>
-                <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="80"/>
-                <DataGridTextColumn Header="Order Number" Binding="{Binding OrderNumber}" Width="120"/>
-                <DataGridTextColumn Header="Street" Binding="{Binding Street}" Width="200"/>
-                <DataGridTextColumn Header="City" Binding="{Binding City}" Width="120"/>
-                <DataGridTextColumn Header="Fecha1" Binding="{Binding Fecha1}" Width="100"/>
-                <DataGridTextColumn Header="Fecha2" Binding="{Binding Fecha2}" Width="100"/>
-                <DataGridTextColumn Header="Tipo1" Binding="{Binding Tipo1}" Width="80"/>
-                <DataGridTextColumn Header="Tipo2" Binding="{Binding Tipo2}" Width="80"/>
-                <DataGridTextColumn Header="Factura" Binding="{Binding Factura}" Width="120"/>
-                <DataGridTextColumn Header="Secuencia" Binding="{Binding Secuencia}" Width="80"/>
-                <DataGridTextColumn Header="Vhc" Binding="{Binding Vhc}" Width="80"/>
-                <DataGridTextColumn Header="Costo Estándar" Binding="{Binding CostoEstandar}" Width="100"/>
-                <DataGridTextColumn Header="Id Carga" Binding="{Binding IdCarga}" Width="100"/>
-                <DataGridTextColumn Header="Centro Destino" Binding="{Binding CentroDestino}" Width="150"/>
-            </DataGrid.Columns>
+            <!-- Estilo para encabezados -->
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="#32AC5C"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Height" Value="35"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    <Setter Property="BorderBrush" Value="#2A8F4A"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="Padding" Value="0"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
         </DataGrid>
 
-        <!-- Botón Exportar -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,5">
             <TextBlock x:Name="txtCount" 
                        Text="Total: 0 registros"

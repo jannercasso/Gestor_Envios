@@ -1,0 +1,386 @@
+<UserControl x:Class="GestorEnvios.Controls.FilterHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="80" d:DesignWidth="200">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Encabezado con flecha -->
+        <Button Grid.Row="0" 
+                x:Name="HeaderButton"
+                Background="Transparent"
+                BorderThickness="0"
+                Cursor="Hand"
+                Padding="5,2"
+                Click="HeaderButton_Click"
+                HorizontalContentAlignment="Center">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="HeaderText" 
+                           Text="Columna" 
+                           FontWeight="Bold" 
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="ArrowText" 
+                           Text=" ▼" 
+                           FontWeight="Bold" 
+                           Foreground="White"
+                           VerticalAlignment="Center"
+                           FontSize="10"
+                           Margin="3,0,0,0"/>
+                <TextBlock x:Name="FilterIndicator" 
+                           Text=""
+                           FontWeight="Bold" 
+                           Foreground="#FFEB3B"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Margin="5,0,0,0"/>
+            </StackPanel>
+        </Button>
+        
+        <!-- Popup de filtro (estilo Excel) -->
+        <Popup x:Name="FilterPopup" 
+               Grid.Row="1" 
+               PlacementTarget="{Binding ElementName=HeaderButton}"
+               Placement="Bottom"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Slide"
+               Width="250">  
+            <Border Background="White" 
+                    BorderBrush="#CCCCCC" 
+                    BorderThickness="1" 
+                    CornerRadius="4"
+                    Padding="8"
+                    MaxHeight="400">
+                <StackPanel>
+                    <!-- Ordenar -->
+                    <TextBlock Text="Ordenar" FontWeight="Bold" Margin="0,0,0,5" Foreground="Black"/>
+                    <Button Content="🔼 Ordenar A - Z" 
+                            Background="#F0F0F0"
+                            BorderThickness="0"
+                            Padding="8,5"
+                            Margin="0,2"
+                            HorizontalAlignment="Left"
+                            Click="SortAscending_Click"
+                            Cursor="Hand"
+                            Foreground="Black"/>
+                    <Button Content="🔽 Ordenar Z - A" 
+                            Background="#F0F0F0"
+                            BorderThickness="0"
+                            Padding="8,5"
+                            Margin="0,2"
+                            HorizontalAlignment="Left"
+                            Click="SortDescending_Click"
+                            Cursor="Hand"
+                            Foreground="Black"/>
+                    
+                    <Separator Margin="0,8"/>
+                    
+                    <!-- Filtro por texto -->
+                    <TextBlock Text="Filtrar" FontWeight="Bold" Margin="0,0,0,5" Foreground="Black"/>
+                    <TextBox x:Name="SearchBox" 
+                             Height="25" 
+                             Margin="0,0,0,5"
+                             Padding="3"
+                             BorderBrush="#CCCCCC"
+                             BorderThickness="1"
+                             TextChanged="SearchBox_TextChanged"
+                             ToolTip="Escribe para filtrar"
+                             Foreground="Black"
+                             Background="White"/>
+                    
+                    <!-- SCROLLVIEWER CON SCROLLBAR EXCEL - REALMENTE DELGADO -->
+                    <ScrollViewer Height="200"
+                                VerticalScrollBarVisibility="Auto"
+                                HorizontalScrollBarVisibility="Auto"
+                                BorderBrush="#D0D0D0"
+                                BorderThickness="1"
+                                Background="White"
+                                Padding="0,0,2,0">
+
+                        <ScrollViewer.Resources>
+
+                            <!-- Estilo del Thumb -->
+                            <Style TargetType="Thumb">
+                                <Setter Property="Background" Value="#C8C8C8"/>
+                                <Setter Property="BorderBrush" Value="#A0A0A0"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Width" Value="6"/>
+                                <Setter Property="MinHeight" Value="30"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3"
+                                                    Width="{TemplateBinding Width}"
+                                                    Height="{TemplateBinding Height}"/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+
+                                <Style.Triggers>
+
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#A8A8A8"/>
+                                        <Setter Property="Width" Value="7"/>
+                                    </Trigger>
+
+                                    <Trigger Property="IsDragging" Value="True">
+                                        <Setter Property="Background" Value="#32AC5C"/>
+                                        <Setter Property="Width" Value="7"/>
+                                    </Trigger>
+
+                                </Style.Triggers>
+                            </Style>
+
+                            <!-- ScrollBar -->
+                            <Style TargetType="ScrollBar">
+                                <Setter Property="Width" Value="12"/>
+
+                                <Setter Property="Template">
+                                    <Setter.Value>
+
+                                        <ControlTemplate TargetType="ScrollBar">
+
+                                            <Grid Background="#F5F5F5">
+
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="14"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="14"/>
+                                                </Grid.RowDefinitions>
+
+                                                <!-- Flecha arriba -->
+                                                <RepeatButton Grid.Row="0"
+                                                            Command="ScrollBar.LineUpCommand"
+                                                            Background="#F0F0F0"
+                                                            BorderBrush="#D0D0D0"
+                                                            BorderThickness="0,0,0,1"
+                                                            Cursor="Hand"
+                                                            Content="▲"
+                                                            FontSize="8"/>
+
+                                                <!-- TRACK -->
+                                                <Track x:Name="PART_Track"
+                                                    Grid.Row="1"
+                                                    Orientation="Vertical"
+                                                    IsDirectionReversed="True">
+                                                    <!-- IsDirectionReversed=True: hace que el mínimo   -->
+                                                    <!-- quede arriba y el thumb baje al aumentar el     -->
+                                                    <!-- valor (sentido normal de arriba hacia abajo).   -->
+
+                                                    <!-- Zona superior -->
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="ScrollBar.PageUpCommand"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+
+                                                    <!-- Thumb -->
+                                                    <Track.Thumb>
+                                                        <Thumb/>
+                                                    </Track.Thumb>
+
+                                                    <!-- Zona inferior -->
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="ScrollBar.PageDownCommand"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+
+                                                </Track>
+
+                                                <!-- Flecha abajo -->
+                                                <RepeatButton Grid.Row="2"
+                                                            Command="ScrollBar.LineDownCommand"
+                                                            Background="#F0F0F0"
+                                                            BorderBrush="#D0D0D0"
+                                                            BorderThickness="0,1,0,0"
+                                                            Cursor="Hand"
+                                                            Content="▼"
+                                                            FontSize="8"/>
+
+                                            </Grid>
+
+                                        </ControlTemplate>
+
+                                    </Setter.Value>
+                                </Setter>
+
+                                <!-- Cuando la orientación es HORIZONTAL, se reemplaza el template -->
+                                <Style.Triggers>
+                                    <Trigger Property="Orientation" Value="Horizontal">
+                                        <!-- Se libera el ancho (Auto) y se fija solo el alto, -->
+                                        <!-- para que la barra se estire a lo ancho.            -->
+                                        <Setter Property="Width" Value="NaN"/>
+                                        <Setter Property="Height" Value="12"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+
+                                                <ControlTemplate TargetType="ScrollBar">
+
+                                                    <Grid Background="#F5F5F5">
+
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="14"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="14"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Flecha izquierda -->
+                                                        <RepeatButton Grid.Column="0"
+                                                                    Command="ScrollBar.LineLeftCommand"
+                                                                    Background="#F0F0F0"
+                                                                    BorderBrush="#D0D0D0"
+                                                                    BorderThickness="0,0,1,0"
+                                                                    Cursor="Hand"
+                                                                    Content="◄"
+                                                                    FontSize="8"/>
+
+                                                        <!-- TRACK Horizontal -->
+                                                        <Track x:Name="PART_Track"
+                                                            Grid.Column="1"
+                                                            Orientation="Horizontal"
+                                                            IsDirectionReversed="False">
+                                                            <!-- En horizontal NO se invierte: el mínimo -->
+                                                            <!-- queda a la izquierda (sentido natural).  -->
+
+                                                            <!-- Zona izquierda -->
+                                                            <Track.DecreaseRepeatButton>
+                                                                <RepeatButton Command="ScrollBar.PageLeftCommand"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"/>
+                                                            </Track.DecreaseRepeatButton>
+
+                                                            <!-- Thumb -->
+                                                            <Track.Thumb>
+                                                                <Thumb Height="6" MinWidth="30" Width="Auto"/>
+                                                            </Track.Thumb>
+
+                                                            <!-- Zona derecha -->
+                                                            <Track.IncreaseRepeatButton>
+                                                                <RepeatButton Command="ScrollBar.PageRightCommand"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"/>
+                                                            </Track.IncreaseRepeatButton>
+
+                                                        </Track>
+
+                                                        <!-- Flecha derecha -->
+                                                        <RepeatButton Grid.Column="2"
+                                                                    Command="ScrollBar.LineRightCommand"
+                                                                    Background="#F0F0F0"
+                                                                    BorderBrush="#D0D0D0"
+                                                                    BorderThickness="1,0,0,0"
+                                                                    Cursor="Hand"
+                                                                    Content="►"
+                                                                    FontSize="8"/>
+
+                                                    </Grid>
+
+                                                </ControlTemplate>
+
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+
+                            </Style>
+
+                        </ScrollViewer.Resources>
+
+                        <ItemsControl x:Name="ItemsControl"
+                                    Background="White">
+
+                            <ItemsControl.ItemTemplate>
+
+                                <DataTemplate>
+
+                                    <CheckBox Content="{Binding Value}"
+                                            IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                            Margin="2,1"
+                                            Padding="5,3"
+                                            Background="Transparent"
+                                            Foreground="Black"
+                                            FontSize="12"
+                                            Cursor="Hand">
+
+                                        <CheckBox.Resources>
+
+                                            <Style TargetType="CheckBox">
+
+                                                <Setter Property="Foreground"
+                                                        Value="Black"/>
+
+                                                <Style.Triggers>
+
+                                                    <Trigger Property="IsChecked"
+                                                            Value="True">
+
+                                                        <Setter Property="Foreground"
+                                                                Value="#32AC5C"/>
+
+                                                        <Setter Property="FontWeight"
+                                                                Value="Bold"/>
+
+                                                    </Trigger>
+
+                                                </Style.Triggers>
+
+                                            </Style>
+
+                                        </CheckBox.Resources>
+
+                                    </CheckBox>
+
+                                </DataTemplate>
+
+                            </ItemsControl.ItemTemplate>
+
+                        </ItemsControl>
+
+                    </ScrollViewer>
+
+                    <!-- Botones -->
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <Button Content="Seleccionar Todos" 
+                                Background="#E0E0E0" 
+                                BorderThickness="0"
+                                Padding="8,3"
+                                FontSize="11"
+                                Click="SelectAll_Click"
+                                Cursor="Hand"
+                                Foreground="Black"/>
+                        <Button Content="Limpiar" 
+                                Background="#E0E0E0" 
+                                BorderThickness="0"
+                                Padding="8,3"
+                                FontSize="11"
+                                Click="ClearAll_Click"
+                                Cursor="Hand"
+                                Margin="5,0,0,0"
+                                Foreground="Black"/>
+                        <Button Content="Aceptar" 
+                                Background="#32AC5C" 
+                                Foreground="White"
+                                BorderThickness="0"
+                                Padding="8,3"
+                                FontSize="11"
+                                Click="ApplyFilter_Click"
+                                Cursor="Hand"
+                                Margin="5,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

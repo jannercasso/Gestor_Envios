@@ -57,7 +57,6 @@ namespace GestorEnvios.Services
                 CargarCentros(hojas.ElementAt(2).Value);
         }
 
-
         private void CargarData(List<Dictionary<string, object>> dataRecords)
         {
             foreach (var row in dataRecords)
@@ -95,6 +94,7 @@ namespace GestorEnvios.Services
                 }
             }
         }
+
         private void CargarEnvios(List<Dictionary<string, object>> enviosRecords)
         {
             foreach (var row in enviosRecords)
@@ -173,96 +173,95 @@ namespace GestorEnvios.Services
             }
         }
 
-    private void ProcesarDatos()
-    {
-        // Crear diccionario de envíos por Delivery
-        var enviosDict = new Dictionary<string, List<EnvioInfo>>();
-        
-        foreach (var envio in Models.EnviosRecords)
+        private void ProcesarDatos()
         {
-            if (!string.IsNullOrEmpty(envio.Delivery))
+            // Crear diccionario de envíos por Delivery
+            var enviosDict = new Dictionary<string, List<EnvioInfo>>();
+            
+            foreach (var envio in Models.EnviosRecords)
             {
-                if (!enviosDict.ContainsKey(envio.Delivery))
-                    enviosDict[envio.Delivery] = new List<EnvioInfo>();
-                
-                enviosDict[envio.Delivery].Add(new EnvioInfo
+                if (!string.IsNullOrEmpty(envio.Delivery))
                 {
-                    IdCarga = envio.IdCarga,
-                    Secuencia = envio.Secuencia,
-                    Vhc = envio.Vhc,
-                    CostoEstandar = envio.CostoEstandar
-                });
-            }
-        }
-
-        foreach (var dataRecord in Models.DataRecords)
-        {
-            var delivery = dataRecord.Delivery ?? "";
-
-            if (enviosDict.ContainsKey(delivery))
-            {
-                var enviosList = enviosDict[delivery];
-                
-                foreach (var envioInfo in enviosList)
-                {
-                    if (envioInfo.Secuencia.HasValue && envioInfo.Secuencia.Value != 0)
+                    if (!enviosDict.ContainsKey(envio.Delivery))
+                        enviosDict[envio.Delivery] = new List<EnvioInfo>();
+                    
+                    enviosDict[envio.Delivery].Add(new EnvioInfo
                     {
-                        var secuencia = envioInfo.Secuencia.Value;
-                        
-                        
-                        if (secuencia == 200 || secuencia == 100)
+                        IdCarga = envio.IdCarga ?? string.Empty,
+                        Secuencia = envio.Secuencia,
+                        Vhc = envio.Vhc ?? string.Empty,
+                        CostoEstandar = envio.CostoEstandar
+                    });
+                }
+            }
+
+            foreach (var dataRecord in Models.DataRecords)
+            {
+                var delivery = dataRecord.Delivery ?? "";
+
+                if (enviosDict.ContainsKey(delivery))
+                {
+                    var enviosList = enviosDict[delivery];
+                    
+                    foreach (var envioInfo in enviosList)
+                    {
+                        if (envioInfo.Secuencia.HasValue && envioInfo.Secuencia.Value != 0)
                         {
-                            var registro = CrearRegistro(dataRecord, envioInfo, secuencia);
-                            Models.Resultados.Add(registro);
+                            var secuencia = envioInfo.Secuencia.Value;
+                            
+                            if (secuencia == 200 || secuencia == 100)
+                            {
+                                var registro = CrearRegistro(dataRecord, envioInfo, secuencia);
+                                Models.Resultados.Add(registro);
+                            }
                         }
                     }
                 }
+                else
+                {
+                    EntregasNoEncontradas.Add($"Cartaporte {delivery} no encontrado. Validar el Cuadro de Planeación Correcto.");
+                }
             }
-            else
+
+            if (EntregasNoEncontradas.Any())
             {
-                EntregasNoEncontradas.Add($"Cartaporte {delivery} no encontrado. Validar el Cuadro de Planeación Correcto.");
+                Errores.AddRange(EntregasNoEncontradas);
             }
         }
 
-        if (EntregasNoEncontradas.Any())
+        private void AgregarCentroDestino()
         {
-            Errores.AddRange(EntregasNoEncontradas);
-        }
-    }
-
-    private void AgregarCentroDestino()
-    {
-        // Diccionario para guardar código y nombre
-        var centrosDict = new Dictionary<string, (string Codigo, string Nombre)>();
-        
-        foreach (var centro in Models.CentrosRecords)
-        {
-            if (!string.IsNullOrEmpty(centro.Ciudad) && !centrosDict.ContainsKey(centro.Ciudad))
-            {
-                var codigo = centro.CodigoParaRecogidas ?? "";
-                var nombre = centro.Centro ?? "Validar_Ciudad_Destino";
-                
-                centrosDict[centro.Ciudad] = (codigo, nombre);
-            }
-        }
-
-        foreach (var record in Models.Resultados.Where(r => r.Secuencia == 200))
-        {
-            var ciudad = record.City?.ToUpper().Trim() ?? "";
+            // Diccionario para guardar código y nombre
+            var centrosDict = new Dictionary<string, (string Codigo, string Nombre)>();
             
-            if (!string.IsNullOrEmpty(ciudad) && centrosDict.ContainsKey(ciudad))
+            foreach (var centro in Models.CentrosRecords)
             {
-                var info = centrosDict[ciudad];
-                record.CentroDestino = info.Nombre;   // Para UI: "COTA", "IBAGUE"
-                record.CentroCodigo = info.Codigo;    // Para Exportar: "102", "105"
+                if (!string.IsNullOrEmpty(centro.Ciudad) && !centrosDict.ContainsKey(centro.Ciudad))
+                {
+                    var codigo = centro.CodigoParaRecogidas ?? "";
+                    var nombre = centro.Centro ?? "Validar_Ciudad_Destino";
+                    
+                    centrosDict[centro.Ciudad] = (codigo, nombre);
+                }
             }
-            else
+
+            foreach (var record in Models.Resultados.Where(r => r.Secuencia == 200))
             {
-                record.CentroDestino = "Validar_Ciudad_Destino";
-                record.CentroCodigo = "";
+                var ciudad = record.City?.ToUpper().Trim() ?? "";
+                
+                if (!string.IsNullOrEmpty(ciudad) && centrosDict.ContainsKey(ciudad))
+                {
+                    var info = centrosDict[ciudad];
+                    record.CentroDestino = info.Nombre;
+                    record.CentroCodigo = info.Codigo;
+                }
+                else
+                {
+                    record.CentroDestino = "Validar_Ciudad_Destino";
+                    record.CentroCodigo = "";
+                }
             }
         }
-    }
 
         private void EliminarDuplicadosFactura()
         {
@@ -306,14 +305,19 @@ namespace GestorEnvios.Services
 
         private void LimpiarSecuencias100()
         {
-            foreach (var record in Models.Resultados.Where(r => r.Secuencia == 100))
+            int contador100 = Models.Resultados.Count(r => r.Secuencia == 100);
+            System.Diagnostics.Debug.WriteLine($"Registros con secuencia 100 antes de limpiar: {contador100}");
+            
+            foreach (var record in Models.Resultados.Where(r => r.Secuencia == 100).ToList())
             {
                 record.Secuencia = null;
                 record.IdCarga = null;
             }
+            
+            int contadorNull = Models.Resultados.Count(r => !r.Secuencia.HasValue);
+            System.Diagnostics.Debug.WriteLine($"Registros con secuencia null después de limpiar: {contadorNull}");
         }
 
-        // CrearRegistro ahora recibe EnvioInfo en lugar de dynamic
         private EnvioData CrearRegistro(EnvioData data, EnvioInfo envioInfo, int secuencia)
         {
             return new EnvioData
@@ -344,6 +348,40 @@ namespace GestorEnvios.Services
                 CostoEstandar = envioInfo.CostoEstandar,
                 IdCarga = envioInfo.IdCarga
             };
+        }
+
+        /// <summary>
+        /// Cuenta las secuencias 100 (incluyendo los registros con secuencia null que originalmente eran 100)
+        /// </summary>
+        public (int secuencia100, int secuencia200) ContarSecuencias()
+        {
+            int secuencia100 = 0;
+            int secuencia200 = 0;
+            
+            foreach (var record in Models.Resultados)
+            {
+                // Los null y los 100 cuentan como secuencia 100
+                if (!record.Secuencia.HasValue || record.Secuencia.Value == 100)
+                {
+                    secuencia100++;
+                }
+                else if (record.Secuencia.Value == 200)
+                {
+                    secuencia200++;
+                }
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"Conteo final - Secuencia100: {secuencia100}, Secuencia200: {secuencia200}");
+            
+            return (secuencia100, secuencia200);
+        }
+
+        public (int total, int secuencia100, int secuencia200) ObtenerResumenCompleto()
+        {
+            int total = Models.Resultados.Count;
+            var (secuencia100, secuencia200) = ContarSecuencias();
+            
+            return (total, secuencia100, secuencia200);
         }
 
         public void SaveResults(string filePath)
@@ -388,38 +426,39 @@ namespace GestorEnvios.Services
             
             var strValue = value.ToString()?.Trim() ?? "";
             
-            // Intentar como entero
             if (int.TryParse(strValue, out int intResult))
                 return intResult;
             
-            // Intentar como double
             if (double.TryParse(strValue, System.Globalization.NumberStyles.Any, 
                                 System.Globalization.CultureInfo.InvariantCulture, 
                                 out double doubleResult))
             {
-                // Si el valor es muy pequeño, redondear a 0
                 if (doubleResult < 0.001) return 0;
-                
-                // Redondear siempre hacia arriba (techo)
-                // 0.5 → 1, 1.001 → 2, 0.167 → 1, 1.333 → 2
                 return (int)Math.Ceiling(doubleResult);
             }
             
             return 0;
         }
+
         private double NormalizarPeso(double peso)
         {
             if (peso <= 0) return 0;
             
-            // Si es un número entero, está en gramos → convertir a toneladas
             if (Math.Abs(peso % 1) < 0.0001)
             {
-                return peso / 1000000.0;  // gramos → toneladas
+                return peso / 1000000.0;
             }
             
-            // Si tiene decimales, ya está en toneladas (mantener)
             return peso;
-        }        
+        }
+    }
 
+    // Clase auxiliar para almacenar información de envíos
+    public class EnvioInfo
+    {
+        public string IdCarga { get; set; } = string.Empty;
+        public int? Secuencia { get; set; }
+        public string Vhc { get; set; } = string.Empty;
+        public double? CostoEstandar { get; set; }
     }
 }
