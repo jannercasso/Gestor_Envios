@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:GestorEnvios.Controls"
-        Title="👁️ Vista Previa - Datos Procesados" 
+        Title="👁️ Vista Previa - Datos Procesados"
+        Icon="/Procter.ico" 
         WindowState="Normal"
         Height="600" Width="1100"
         WindowStartupLocation="CenterOwner">
@@ -241,7 +242,8 @@
                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                   AutoGeneratingColumn="DgPreview_AutoGeneratingColumn"
                   MinColumnWidth="120"
-                  MaxColumnWidth="300">
+                  MaxColumnWidth="300"
+                  IsReadOnly="True">
             
             <!-- UN SOLO BLOQUE DE RESOURCES -->
             <DataGrid.Resources>
