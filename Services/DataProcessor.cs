@@ -64,6 +64,12 @@ namespace GestorEnvios.Services
                 var values = row.Values.ToList();
                 if (values.Count >= 21)
                 {
+                    var name1 = values[8]?.ToString() ?? "";
+                    
+                    // 🔥 FILTRO: Solo ICOLTRANS LTDA
+                    if (name1.Trim().ToUpper() != "ICOLTRANS LTDA")
+                        continue;
+                    
                     var pesoOriginal = TryParseDouble(values[10]);
                     var cajasOriginal = TryParseCount(values[12]);
                     
@@ -77,7 +83,7 @@ namespace GestorEnvios.Services
                         VehicleType = values[5]?.ToString(),
                         Description = values[6]?.ToString(),
                         ServiceAgent = values[7]?.ToString(),
-                        Name1 = values[8]?.ToString(),
+                        Name1 = name1,
                         DeliveryDate = values[9]?.ToString(),
                         Weight = NormalizarPeso(TryParseDouble(values[10])),
                         Volume = TryParseDouble(values[11]),
@@ -102,6 +108,12 @@ namespace GestorEnvios.Services
                 var values = row.Values.ToList();
                 if (values.Count >= 17)
                 {
+                    var nombreCarrier = values[13]?.ToString() ?? "";
+                    
+                    // 🔥 FILTRO: Solo ICOLTRANS LTDA
+                    if (nombreCarrier.Trim().ToUpper() != "ICOLTRANS LTDA")
+                        continue;
+                    
                     Models.EnviosRecords.Add(new EnvioData
                     {
                         Delivery = values[0]?.ToString(),
@@ -350,9 +362,6 @@ namespace GestorEnvios.Services
             };
         }
 
-        /// <summary>
-        /// Cuenta las secuencias 100 (incluyendo los registros con secuencia null que originalmente eran 100)
-        /// </summary>
         public (int secuencia100, int secuencia200) ContarSecuencias()
         {
             int secuencia100 = 0;
@@ -360,7 +369,6 @@ namespace GestorEnvios.Services
             
             foreach (var record in Models.Resultados)
             {
-                // Los null y los 100 cuentan como secuencia 100
                 if (!record.Secuencia.HasValue || record.Secuencia.Value == 100)
                 {
                     secuencia100++;
