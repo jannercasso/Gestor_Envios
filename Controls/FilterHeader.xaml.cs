@@ -10,7 +10,7 @@ namespace GestorEnvios.Controls
     public partial class FilterHeader : UserControl
     {
         public event EventHandler<FilterChangedEventArgs>? FilterChanged;
-        public event EventHandler<SortEventArgs> SortRequested;
+        public event EventHandler<SortEventArgs>? SortRequested;
         
         private List<string> _allItems = new List<string>();
         private string _columnName = "";

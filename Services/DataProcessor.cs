@@ -76,9 +76,9 @@ namespace GestorEnvios.Services
                     Models.DataRecords.Add(new EnvioData
                     {
                         // ✅ CAMBIO 1: Normalizar ShipmentNumber
-                        ShipmentNumber = NormalizarNumero(values[0]?.ToString()),
+                        ShipmentNumber = NormalizarNumero(values[0]?.ToString() ?? ""),
                         // ✅ CAMBIO 2: Normalizar Delivery
-                        Delivery = NormalizarNumero(values[1]?.ToString()),
+                        Delivery = NormalizarNumero(values[1]?.ToString() ?? ""),
                         Name = values[2]?.ToString(),
                         ShipmentType = values[3]?.ToString(),
                         ShipToParty = values[4]?.ToString(),
@@ -119,7 +119,7 @@ namespace GestorEnvios.Services
                     Models.EnviosRecords.Add(new EnvioData
                     {
                         // ✅ CAMBIO 3: Normalizar Delivery
-                        Delivery = NormalizarNumero(values[0]?.ToString()),
+                        Delivery = NormalizarNumero(values[0]?.ToString() ?? ""),
                         IdCarga = values[6]?.ToString(),
                         Secuencia = TryParseIntNull(values[7]),
                         Vhc = values[15]?.ToString(),

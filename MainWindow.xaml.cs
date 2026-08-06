@@ -65,7 +65,7 @@ namespace GestorEnvios
     public partial class MainWindow : Window
     {
         private readonly DataProcessor _processor;
-        private List<EnvioData> _ultimosDatos; // ✅ Guardar los datos para volver a mostrarlos
+        private List<EnvioData>? _ultimosDatos; // ✅ Guardar los datos para volver a mostrarlos
 
         public MainWindow()
         {
@@ -226,7 +226,7 @@ namespace GestorEnvios
                 
                 // ✅ Ocultar botón de vista previa al limpiar
                 MostrarBotonVistaPrevia(false);
-                _ultimosDatos = null;
+                _ultimosDatos = new List<EnvioData>();
             }
         }
 
