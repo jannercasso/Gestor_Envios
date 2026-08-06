@@ -75,8 +75,10 @@ namespace GestorEnvios.Services
                     
                     Models.DataRecords.Add(new EnvioData
                     {
-                        ShipmentNumber = values[0]?.ToString(),
-                        Delivery = values[1]?.ToString(),
+                        // ✅ CAMBIO 1: Normalizar ShipmentNumber
+                        ShipmentNumber = NormalizarNumero(values[0]?.ToString()),
+                        // ✅ CAMBIO 2: Normalizar Delivery
+                        Delivery = NormalizarNumero(values[1]?.ToString()),
                         Name = values[2]?.ToString(),
                         ShipmentType = values[3]?.ToString(),
                         ShipToParty = values[4]?.ToString(),
@@ -116,7 +118,8 @@ namespace GestorEnvios.Services
                     
                     Models.EnviosRecords.Add(new EnvioData
                     {
-                        Delivery = values[0]?.ToString(),
+                        // ✅ CAMBIO 3: Normalizar Delivery
+                        Delivery = NormalizarNumero(values[0]?.ToString()),
                         IdCarga = values[6]?.ToString(),
                         Secuencia = TryParseIntNull(values[7]),
                         Vhc = values[15]?.ToString(),
@@ -402,6 +405,25 @@ namespace GestorEnvios.Services
             var downloadsPath = _excelService.GetDownloadsPath();
             var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             return $"{downloadsPath}Corte_Procter&Gamble_{timestamp}.xlsx";
+        }
+
+        // ✅ NUEVO MÉTODO: Normalizar números eliminando ceros a la izquierda
+        private string NormalizarNumero(string valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                return string.Empty;
+            
+            // Eliminar espacios y caracteres especiales
+            var limpio = valor.Trim().Replace(" ", "").Replace("-", "").Replace(".", "");
+            
+            // Intentar convertir a número y luego de vuelta a string para eliminar ceros a la izquierda
+            if (long.TryParse(limpio, out long numeroLimpio))
+            {
+                return numeroLimpio.ToString();
+            }
+            
+            // Si no se puede convertir, devolver el original limpio
+            return limpio;
         }
 
         private double TryParseDouble(object value)

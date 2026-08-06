@@ -1,0 +1,5 @@
+[33mf412945[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;32mexperimentos[m[33m)[m Agregados filtros estilo Excel en vista previa
+[33m641ac85[m Ajustes finales - Normalización de peso, redondeo de cajas y mejoras UI
+[33m1277aa5[m Versión estable - CentroDestino muestra nombre en UI y código en exportación
+[33ma6ed2f9[m Agregado bin/ y obj/ al .gitignore
+[33mb8a8305[m Versión inicial del proyecto - Gestor de Envíos

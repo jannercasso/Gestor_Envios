@@ -3,12 +3,66 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
 using GestorEnvios.Models;
 using GestorEnvios.Services;
 using GestorEnvios.Controls;
 
 namespace GestorEnvios.Views
 {
+    // ================================================
+    // CONVERTIDORES PARA EL EFECTO HOVER DE BOTONES
+    // ================================================
+    
+    public class DarkenColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is SolidColorBrush brush)
+            {
+                var color = brush.Color;
+                return new SolidColorBrush(Color.FromRgb(
+                    (byte)Math.Max(0, color.R - 30),
+                    (byte)Math.Max(0, color.G - 30),
+                    (byte)Math.Max(0, color.B - 30)
+                ));
+            }
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class DarkerColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is SolidColorBrush brush)
+            {
+                var color = brush.Color;
+                return new SolidColorBrush(Color.FromRgb(
+                    (byte)Math.Max(0, color.R - 60),
+                    (byte)Math.Max(0, color.G - 60),
+                    (byte)Math.Max(0, color.B - 60)
+                ));
+            }
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // ================================================
+    // PREVIEW WINDOW
+    // ================================================
+    
     public partial class PreviewWindow : Window
     {
         private List<EnvioData> _allData;
@@ -16,6 +70,9 @@ namespace GestorEnvios.Views
         private readonly DataProcessor _processor;
         private Dictionary<string, FilterHeader> _filterHeaders = new Dictionary<string, FilterHeader>();
         private Dictionary<string, List<string>> _activeFilters = new Dictionary<string, List<string>>();
+
+        // ✅ Propiedad para saber si se exportó
+        public bool DatosExportados { get; private set; } = false;
 
         public PreviewWindow(List<EnvioData> data)
         {
@@ -33,7 +90,6 @@ namespace GestorEnvios.Views
                 _allData = data;
                 _filteredData = new List<EnvioData>(data);
                 
-                // 🔹 CORREGIDO: Limpiar y agregar los datos uno por uno
                 _processor.Models.Resultados.Clear();
                 foreach (var item in _allData)
                 {
@@ -47,19 +103,16 @@ namespace GestorEnvios.Views
 
         private void ActualizarContador()
         {
-            // 🔹 Obtener el conteo de secuencias usando el método del DataProcessor
             var (secuencia100, secuencia200) = _processor.ContarSecuencias();
             var total = _filteredData.Count;
             
-            // 🔹 Mostrar el contador con la información de secuencias
-            txtCount.Text = $"Total: {total} registros | " +
-                           $"Secuencia 100: {secuencia100} | " +
-                           $"Secuencia 200: {secuencia200}";
+            txtPreviewCount.Text = $"Total: {total} registros | " +
+                                   $"Secuencia 100: {secuencia100} | " +
+                                   $"Secuencia 200: {secuencia200}";
         }
 
         private void DgPreview_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
         {
-            // ✅ CORRECTO: Verificar cada propiedad individualmente
             if (e.PropertyName == "EsDuplicado" || e.PropertyName == "CentroCodigo")
             {
                 e.Cancel = true;
@@ -223,6 +276,9 @@ namespace GestorEnvios.Views
 
                 excelService.SaveExcel(filePath, _filteredData);
                 
+                // ✅ Marcar que se exportó
+                DatosExportados = true;
+                
                 MessageBox.Show($"✅ Archivo exportado exitosamente en:\n{filePath}", 
                               "Exportación Exitosa", 
                               MessageBoxButton.OK, 
@@ -234,6 +290,22 @@ namespace GestorEnvios.Views
             {
                 MessageBox.Show($"Error al exportar: {ex.Message}", "Error", 
                               MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ✅ Evento que se ejecuta cuando la ventana se cierra (con X o con Close())
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            
+            // Si NO se exportó, notificar que se cerró sin exportar
+            if (!DatosExportados)
+            {
+                // Buscar la ventana principal y llamar al método para mostrar el botón
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.MostrarBotonVistaPrevia(true);
+                }
             }
         }
     }

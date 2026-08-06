@@ -1,6 +1,7 @@
 ﻿<Window x:Class="GestorEnvios.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:GestorEnvios"
         Title="🚚 Gestor de Envíos Procter"
         Icon="/Procter.ico"
         WindowState="Maximized" 
@@ -8,12 +9,59 @@
         WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
+        <!-- 🔹 REGISTRAR LOS CONVERTIDORES AQUÍ -->
+        <local:DarkenColorConverter x:Key="DarkenColorConverter"/>
+        <local:DarkerColorConverter x:Key="DarkerColorConverter"/>
+        
         <!-- Colores definidos como recursos -->
         <SolidColorBrush x:Key="GreenNormal" Color="#32AC5C"/>
         <SolidColorBrush x:Key="GreenHover" Color="#4AC87C"/>
         <SolidColorBrush x:Key="GreenDark" Color="#2A8F4A"/>
         <SolidColorBrush x:Key="WhiteBrush" Color="White"/>
         
+        <!-- ============================================ -->
+        <!-- ESTILO PARA BOTONES CON EFECTO HOVER         -->
+        <!-- ============================================ -->
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <!-- Efecto Hover -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{Binding Background, RelativeSource={RelativeSource Self}, Converter={StaticResource DarkenColorConverter}}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                </Trigger>
+                <!-- Efecto Pressed (clic) -->
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{Binding Background, RelativeSource={RelativeSource Self}, Converter={StaticResource DarkerColorConverter}}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <!-- Estado Deshabilitado -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#B0BEC5"/>
+                    <Setter Property="Foreground" Value="#78909C"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- ============================================ -->
         <!-- ESTILO SCROLLBAR ÚNICO (VERTICAL + HORIZONTAL) -->
         <!-- ============================================ -->
@@ -229,11 +277,10 @@
                          Height="30"
                          Margin="0,0,10,0"/>
                 
+                <!-- Botón Seleccionar - Azul -->
                 <Button Grid.Row="0" Grid.Column="1" 
                         Content="📂 Seleccionar"
                         Background="#2196F3"
-                        Foreground="White"
-                        FontWeight="Bold"
                         Padding="10,5"
                         Click="BtnSeleccionarArchivo_Click"
                         Height="30"/>
@@ -241,24 +288,34 @@
         </GroupBox>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+            <!-- Botón Procesar - Verde -->
             <Button x:Name="btnProcesar" 
-                    Content="▶ PROCESAR DATOS"
+                    Content="▶ Procesar Datos"
                     Background="#4CAF50"
-                    Foreground="White"
-                    FontWeight="Bold"
                     Padding="15,8"
                     Click="BtnProcesar_Click"
                     IsEnabled="False"
                     Width="200"/>
+            
+            <!-- Botón Limpiar - Rojo -->
             <Button x:Name="btnLimpiar" 
-                    Content="🗑️ LIMPIAR"
-                    Background="#f44336"
-                    Foreground="White"
-                    FontWeight="Bold"
+                    Content="🗑️ Limpiar"
+                    Background="#757575"
                     Padding="15,8"
                     Click="BtnLimpiar_Click"
+                    IsEnabled="False"
                     Width="120"
                     Margin="10,0,0,0"/>
+
+            <!-- ✅ Botón Ver Vista Previa -->
+            <Button x:Name="btnVerVistaPrevia" 
+                    Content="👁️ Ver Vista Previa"
+                    Background="#8BC34A"
+                    Padding="15,8"
+                    Click="BtnVerVistaPrevia_Click"
+                    Width="160"
+                    Margin="10,0,0,0"
+                    Visibility="Collapsed"/>
             
             <TextBlock x:Name="txtStatus" 
                     Text="✅ Listo" 
@@ -376,11 +433,6 @@
             <StatusBarItem>
                 <TextBlock x:Name="statusBarText" Text="Selecciona un archivo"/>
             </StatusBarItem>
-            <Separator/>
-            <StatusBarItem>
-                <TextBlock x:Name="statusBarCount" Text="0 registros"/>
-            </StatusBarItem>
-            <Separator/>
             <StatusBarItem>
                 <TextBlock x:Name="statusBarErrores" Text="" Foreground="Red"/>
             </StatusBarItem>

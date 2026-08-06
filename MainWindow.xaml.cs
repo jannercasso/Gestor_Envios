@@ -1,20 +1,88 @@
 ﻿using System;
 using System.Linq;
 using System.Windows;
+using System.Windows.Data;
+using System.Windows.Media;
 using Microsoft.Win32;
 using GestorEnvios.Services;
 using GestorEnvios.Views;
+using GestorEnvios.Models;
 
 namespace GestorEnvios
 {
+    // ================================================
+    // CONVERTIDORES PARA EL EFECTO HOVER DE BOTONES
+    // ================================================
+    
+    public class DarkenColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is SolidColorBrush brush)
+            {
+                var color = brush.Color;
+                return new SolidColorBrush(Color.FromRgb(
+                    (byte)Math.Max(0, color.R - 30),
+                    (byte)Math.Max(0, color.G - 30),
+                    (byte)Math.Max(0, color.B - 30)
+                ));
+            }
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class DarkerColorConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is SolidColorBrush brush)
+            {
+                var color = brush.Color;
+                return new SolidColorBrush(Color.FromRgb(
+                    (byte)Math.Max(0, color.R - 60),
+                    (byte)Math.Max(0, color.G - 60),
+                    (byte)Math.Max(0, color.B - 60)
+                ));
+            }
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // ================================================
+    // MAIN WINDOW
+    // ================================================
+    
     public partial class MainWindow : Window
     {
         private readonly DataProcessor _processor;
+        private List<EnvioData> _ultimosDatos; // ✅ Guardar los datos para volver a mostrarlos
 
         public MainWindow()
         {
             InitializeComponent();
             _processor = new DataProcessor();
+            
+            // ✅ Ocultar botón de vista previa al inicio
+            btnVerVistaPrevia.Visibility = Visibility.Collapsed;
+        }
+
+        // ✅ Método público para que PreviewWindow pueda mostrar/ocultar el botón
+        public void MostrarBotonVistaPrevia(bool mostrar)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                btnVerVistaPrevia.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+            });
         }
 
         private void BtnSeleccionarArchivo_Click(object sender, RoutedEventArgs e)
@@ -39,11 +107,16 @@ namespace GestorEnvios
                     dgDatos.ItemsSource = _processor.Models.DataRecords;
                     
                     var count = _processor.Models.DataRecords.Count;
+                    
                     statusBarText.Text = $"✅ Vista previa de Data cargada. {count} registros";
-                    statusBarCount.Text = $"{count} registros (Data)";
                     
                     btnProcesar.IsEnabled = true;
+                    btnLimpiar.IsEnabled = true;
                     txtStatus.Text = "✅ Data cargada";
+                    statusBarErrores.Text = "";
+                    
+                    // ✅ Ocultar botón de vista previa al cargar nuevos datos
+                    MostrarBotonVistaPrevia(false);
                 }
                 catch (Exception ex)
                 {
@@ -97,15 +170,15 @@ namespace GestorEnvios
                 dgDatos.ItemsSource = null;
                 dgDatos.ItemsSource = _processor.Models.Resultados;
 
-                // 🔹 CORREGIDO: se usa ObtenerResumenCompleto() para que los registros
-                // con Secuencia == null (originalmente 100) se cuenten correctamente
                 var (count, count100, count200) = _processor.ObtenerResumenCompleto();
                 
                 btnProcesar.IsEnabled = true;
 
                 statusBarText.Text = $"✅ Proceso completado. {count} registros";
-                statusBarCount.Text = $"{count} registros (200: {count200}, 100: {count100})";
                 txtStatus.Text = "✅ Completado";
+
+                // ✅ Guardar los datos para poder volver a mostrarlos
+                _ultimosDatos = _processor.Models.Resultados.ToList();
 
                 MessageBox.Show($"Proceso terminado. Los datos se han guardado en la tabla.\n\n" +
                                $"Total: {count} registros\n" +
@@ -113,7 +186,9 @@ namespace GestorEnvios
                                $"Secuencia 100: {count100}", 
                                "Proceso Completado", MessageBoxButton.OK, MessageBoxImage.Information);
                 
-                // Abrir la vista previa automáticamente
+                // ✅ Ocultar botón de vista previa (por si acaso)
+                MostrarBotonVistaPrevia(false);
+                
                 AbrirVistaPrevia();
             }
             catch (Exception ex)
@@ -143,11 +218,35 @@ namespace GestorEnvios
                 txtArchivo.Text = "Seleccionar Documento";
                 
                 btnProcesar.IsEnabled = false;
+                btnLimpiar.IsEnabled = false;
                 
                 statusBarText.Text = "🗑️ Datos limpiados. Selecciona un archivo nuevamente";
-                statusBarCount.Text = "0 registros";
                 statusBarErrores.Text = "";
                 txtStatus.Text = "✅ Listo";
+                
+                // ✅ Ocultar botón de vista previa al limpiar
+                MostrarBotonVistaPrevia(false);
+                _ultimosDatos = null;
+            }
+        }
+
+        // ✅ Evento del botón "Ver Vista Previa"
+        private void BtnVerVistaPrevia_Click(object sender, RoutedEventArgs e)
+        {
+            if (_ultimosDatos != null && _ultimosDatos.Any())
+            {
+                // ✅ Ocultar el botón antes de abrir la vista previa
+                MostrarBotonVistaPrevia(false);
+                
+                var preview = new PreviewWindow(_ultimosDatos);
+                preview.Owner = this;
+                preview.ShowDialog();
+            }
+            else
+            {
+                MessageBox.Show("No hay datos para mostrar en la vista previa.", "Sin datos", 
+                              MessageBoxButton.OK, MessageBoxImage.Warning);
+                MostrarBotonVistaPrevia(false);
             }
         }
 
@@ -157,7 +256,7 @@ namespace GestorEnvios
             {
                 var preview = new PreviewWindow(_processor.Models.Resultados.ToList());
                 preview.Owner = this;
-                preview.ShowDialog();  // <-- CAMBIADO: ahora es modal
+                preview.ShowDialog();
             }
             else
             {
