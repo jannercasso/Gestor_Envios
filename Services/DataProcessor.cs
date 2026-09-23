@@ -13,42 +13,50 @@ namespace GestorEnvios.Services
         public List<string> CiudadesNoEncontradas { get; private set; } = new();
         public List<string> EntregasNoEncontradas { get; private set; } = new();
 
+        // ✅ Lista cruda para el DataGrid del Plan B
+        public List<EnvioRawView> EnviosRawView { get; private set; } = new();
+
+        // ✅ Lista separada para los shiptos de la hoja Db_Shipto
+        public List<CentroDestino> ShiptoRecords { get; private set; } = new();
+
         public DataProcessor()
         {
             _excelService = new ExcelService();
             Models = new DataModels();
         }
 
+        // ============================================================
+        // FLUJO NORMAL (3 hojas: Data + Envíos + Centros)
+        // ============================================================
         public void LoadDataFromSingleFile(string filePath)
         {
             Models.DataRecords.Clear();
             Models.EnviosRecords.Clear();
             Models.CentrosRecords.Clear();
+            ShiptoRecords.Clear();
             Errores.Clear();
             CiudadesNoEncontradas.Clear();
             EntregasNoEncontradas.Clear();
+            EnviosRawView.Clear();
 
             var hojas = _excelService.ReadAllSheets(filePath);
 
             foreach (var hoja in hojas)
             {
-                var nombreHoja = hoja.Key;
-                var datos = hoja.Value;
+                var nombreHoja = hoja.Key.ToLower();
 
-                if (nombreHoja.ToLower().Contains("data") || nombreHoja.ToLower().Contains("datos"))
-                {
-                    CargarData(datos);
-                }
-                else if (nombreHoja.ToLower().Contains("envios") || nombreHoja.ToLower().Contains("envío"))
-                {
-                    CargarEnvios(datos);
-                }
-                else if (nombreHoja.ToLower().Contains("centros") || nombreHoja.ToLower().Contains("destino"))
-                {
-                    CargarCentros(datos);
-                }
+                // Chequear "shipto" ANTES que "centros"/"destino"
+                if (nombreHoja.Contains("shipto"))
+                    continue;
+                else if (nombreHoja.Contains("data") || nombreHoja.Contains("datos"))
+                    CargarData(hoja.Value);
+                else if (nombreHoja.Contains("envios") || nombreHoja.Contains("envío"))
+                    CargarEnvios(hoja.Value);
+                else if (nombreHoja.Contains("centros") || nombreHoja.Contains("destino"))
+                    CargarCentros(hoja.Value);
             }
 
+            // Fallback por posición
             if (Models.DataRecords.Count == 0 && hojas.Count >= 1)
                 CargarData(hojas.ElementAt(0).Value);
             if (Models.EnviosRecords.Count == 0 && hojas.Count >= 2)
@@ -65,19 +73,11 @@ namespace GestorEnvios.Services
                 if (values.Count >= 21)
                 {
                     var name1 = values[8]?.ToString() ?? "";
-                    
-                    // 🔥 FILTRO: Solo ICOLTRANS LTDA
-                    if (name1.Trim().ToUpper() != "ICOLTRANS LTDA")
-                        continue;
-                    
-                    var pesoOriginal = TryParseDouble(values[10]);
                     var cajasOriginal = TryParseCount(values[12]);
-                    
+
                     Models.DataRecords.Add(new EnvioData
                     {
-                        // ✅ CAMBIO 1: Normalizar ShipmentNumber
                         ShipmentNumber = NormalizarNumero(values[0]?.ToString() ?? ""),
-                        // ✅ CAMBIO 2: Normalizar Delivery
                         Delivery = NormalizarNumero(values[1]?.ToString() ?? ""),
                         Name = values[2]?.ToString(),
                         ShipmentType = values[3]?.ToString(),
@@ -111,19 +111,15 @@ namespace GestorEnvios.Services
                 if (values.Count >= 17)
                 {
                     var nombreCarrier = values[13]?.ToString() ?? "";
-                    
-                    // 🔥 FILTRO: Solo ICOLTRANS LTDA
-                    if (nombreCarrier.Trim().ToUpper() != "ICOLTRANS LTDA")
-                        continue;
-                    
+
                     Models.EnviosRecords.Add(new EnvioData
                     {
-                        // ✅ CAMBIO 3: Normalizar Delivery
                         Delivery = NormalizarNumero(values[0]?.ToString() ?? ""),
                         IdCarga = values[6]?.ToString(),
                         Secuencia = TryParseIntNull(values[7]),
                         Vhc = values[15]?.ToString(),
-                        CostoEstandar = TryParseDoubleNull(values[16])
+                        CostoEstandar = TryParseDoubleNull(values[16]),
+                        Name1 = nombreCarrier
                     });
                 }
             }
@@ -148,7 +144,415 @@ namespace GestorEnvios.Services
             }
         }
 
-        public void ProcessData()
+        // ============================================================
+        // PLAN B: Cargar Envíos + Db_Shipto + Centros
+        // - Match Ship-to: Envíos."ID ubicación destino" == Db_Shipto."Ship-to"
+        // - Centro Destino: se calcula con la hoja Centros (igual que flujo normal)
+        // ============================================================
+        public void LoadDataFromEnviosOnly(string filePath)
+        {
+            Models.DataRecords.Clear();
+            Models.EnviosRecords.Clear();
+            Models.CentrosRecords.Clear();
+            ShiptoRecords.Clear();
+            Models.Resultados.Clear();
+            Errores.Clear();
+            CiudadesNoEncontradas.Clear();
+            EntregasNoEncontradas.Clear();
+            EnviosRawView.Clear();
+
+            var hojas = _excelService.ReadAllSheets(filePath);
+
+            List<Dictionary<string, object>> enviosSheet = new();
+            List<Dictionary<string, object>> shiptoSheet = new();
+            List<Dictionary<string, object>> centrosSheet = new();
+
+            foreach (var hoja in hojas)
+            {
+                var nombre = hoja.Key.ToLower();
+
+                // Chequear "shipto" ANTES que "centros"/"destino"
+                if (nombre.Contains("shipto") || nombre.Contains("db_shipto"))
+                    shiptoSheet = hoja.Value;
+                else if (nombre.Contains("centros") || nombre.Contains("destino"))
+                    centrosSheet = hoja.Value;
+                else if (nombre.Contains("envio") || nombre.Contains("envío"))
+                    enviosSheet = hoja.Value;
+            }
+
+            CargarEnviosPlanB(enviosSheet);
+            CargarShiptoPlanB(shiptoSheet);
+            CargarCentros(centrosSheet);
+
+            // Diccionario Ship-to → CentroDestino (desde ShiptoRecords)
+            var shiptoDict = ShiptoRecords
+                .Where(c => !string.IsNullOrWhiteSpace(c.ShipTo))
+                .GroupBy(c => c.ShipTo!)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // ============================================================
+            // PRE-SCAN: por cada ID de envío, elegir el ID ubicación
+            // destino que EXISTA en Db_Shipto
+            // ============================================================
+            var idUbicDestinoGanador = new Dictionary<string, string>();
+
+            var filasPorIdEnvio = new Dictionary<string, List<string>>();
+            foreach (var row in enviosSheet)
+            {
+                var values = row.Values.ToList();
+                if (values.Count < 8) continue;
+
+                var idEnvio = values[0]?.ToString()?.Trim() ?? "";
+                var idUbicDestinoRaw = NormalizarNumero(values[2]?.ToString() ?? "");
+
+                if (string.IsNullOrEmpty(idEnvio)) continue;
+
+                if (!filasPorIdEnvio.ContainsKey(idEnvio))
+                    filasPorIdEnvio[idEnvio] = new List<string>();
+
+                filasPorIdEnvio[idEnvio].Add(idUbicDestinoRaw);
+            }
+
+            foreach (var kvp in filasPorIdEnvio)
+            {
+                var idEnvio = kvp.Key;
+                var idsUbicDestino = kvp.Value;
+
+                var idGanador = idsUbicDestino
+                    .FirstOrDefault(id => !string.IsNullOrEmpty(id) && shiptoDict.ContainsKey(id));
+
+                if (!string.IsNullOrEmpty(idGanador))
+                {
+                    idUbicDestinoGanador[idEnvio] = idGanador;
+                }
+                else
+                {
+                    var nombreDestino = enviosSheet
+                        .Where(r => (r.Values.ToList()[0]?.ToString()?.Trim() ?? "") == idEnvio)
+                        .Select(r => r.Values.ToList()[1]?.ToString())
+                        .FirstOrDefault();
+
+                    var listaIds = string.Join(", ", idsUbicDestino);
+                    EntregasNoEncontradas.Add(
+                        $"ID envío {idEnvio} ({nombreDestino}): ninguno de sus Ship-to [{listaIds}] existe en Db_Shipto.");
+
+                    idUbicDestinoGanador[idEnvio] = idsUbicDestino.LastOrDefault() ?? "";
+                }
+            }
+
+            // ============================================================
+            // 1) Construir EnviosRawView (para DataGrid)
+            // ============================================================
+            var cacheStreetCity = new Dictionary<string, (string Street, string City)>();
+            var cacheNombreDestinatario = new Dictionary<string, string>();
+
+            foreach (var row in enviosSheet)
+            {
+                var values = row.Values.ToList();
+                if (values.Count < 8) continue;
+
+                var idEnvio = values[0]?.ToString()?.Trim() ?? "";
+
+                string idUbicDestino = idUbicDestinoGanador.TryGetValue(idEnvio, out var ganador)
+                    ? ganador
+                    : NormalizarNumero(values[2]?.ToString() ?? "");
+
+                string street;
+                string city;
+                string nombreDestinatario;
+
+                if (!string.IsNullOrEmpty(idEnvio) &&
+                    cacheStreetCity.TryGetValue(idEnvio, out var cached))
+                {
+                    street = cached.Street;
+                    city = cached.City;
+                    nombreDestinatario = cacheNombreDestinatario[idEnvio];
+                }
+                else
+                {
+                    street = "";
+                    city = "";
+                    nombreDestinatario = "";
+
+                    if (!string.IsNullOrEmpty(idUbicDestino) &&
+                        shiptoDict.TryGetValue(idUbicDestino, out var shipto))
+                    {
+                        street = shipto.ShiptoStreet ?? "";
+                        city = shipto.ShiptoCity ?? "";
+                        nombreDestinatario = shipto.ShiptoName1 ?? "";
+                    }
+
+                    if (!string.IsNullOrEmpty(idEnvio))
+                    {
+                        cacheStreetCity[idEnvio] = (street, city);
+                        cacheNombreDestinatario[idEnvio] = nombreDestinatario;
+                    }
+                }
+
+                EnviosRawView.Add(new EnvioRawView
+                {
+                    IdEnvio = values.Count > 0 ? values[0]?.ToString() : "",
+                    NombreUbicacionDestino = string.IsNullOrEmpty(nombreDestinatario)
+                                                ? (values.Count > 1 ? values[1]?.ToString() : "")
+                                                : nombreDestinatario,
+                    IdUbicacionDestino = idUbicDestino,
+                    PesoKG = values.Count > 3 ? TryParseDouble(values[3]) : 0,
+                    VolumenCUM = values.Count > 4 ? TryParseDouble(values[4]) : 0,
+                    Piezas = values.Count > 5 ? TryParseCount(values[5]) : 0,
+                    IdCarga = values.Count > 6 ? values[6]?.ToString() : "",
+                    NumeroSecuencia = values.Count > 7 ? TryParseIntNull(values[7]) : null,
+                    IdUbicacionOrigen = values.Count > 8 ? values[8]?.ToString() : "",
+                    DireccionDestino = values.Count > 9 ? values[9]?.ToString() : "",
+                    Corredor = values.Count > 10 ? values[10]?.ToString() : "",
+                    FechaLlegada = values.Count > 11 ? values[11]?.ToString() : "",
+                    EstadoOperativo = values.Count > 12 ? values[12]?.ToString() : "",
+                    NombreCarrier = values.Count > 13 ? values[13]?.ToString() : "",
+                    IdTransportista = values.Count > 14 ? values[14]?.ToString() : "",
+                    Vhc = values.Count > 15 ? values[15]?.ToString() : "",
+                    CostoEstandar = values.Count > 16 ? values[16]?.ToString() : "",
+                    Street = street,
+                    City = city
+                });
+            }
+
+            // ============================================================
+            // 2) Construir DataRecords (para procesamiento interno)
+            // ============================================================
+            var cacheStreetCityData = new Dictionary<string, (string Street, string City)>();
+
+            foreach (var envio in Models.EnviosRecords)
+            {
+                var idEnvio = envio.ShipmentNumber?.Trim() ?? "";
+                var idDestinoRaw = envio.Delivery?.Trim() ?? "";
+                var nombreDestino = envio.Name?.Trim() ?? "";
+
+                string idDestino = idUbicDestinoGanador.TryGetValue(idEnvio, out var ganadorData)
+                    ? ganadorData
+                    : idDestinoRaw;
+
+                string street;
+                string city;
+                string name1Shipto = "";
+
+                if (!string.IsNullOrEmpty(idEnvio) &&
+                    cacheStreetCityData.TryGetValue(idEnvio, out var cached))
+                {
+                    street = cached.Street;
+                    city = cached.City;
+                }
+                else
+                {
+                    street = "";
+                    city = "";
+
+                    if (!string.IsNullOrEmpty(idDestino) &&
+                        shiptoDict.TryGetValue(idDestino, out var shipto))
+                    {
+                        street = shipto.ShiptoStreet ?? "";
+                        city = shipto.ShiptoCity ?? "";
+                        name1Shipto = shipto.ShiptoName1 ?? "";
+                    }
+
+                    if (!string.IsNullOrEmpty(idEnvio))
+                        cacheStreetCityData[idEnvio] = (street, city);
+                }
+
+                if (string.IsNullOrWhiteSpace(city))
+                    CiudadesNoEncontradas.Add($"Ship-to '{idDestino}' sin ciudad en Db_Shipto.");
+
+                Models.DataRecords.Add(new EnvioData
+                {
+                    ShipmentNumber = envio.ShipmentNumber,
+                    Delivery = idDestino,
+                    ShipToParty = idDestino,
+                    Name = string.IsNullOrEmpty(name1Shipto) ? nombreDestino : name1Shipto,
+                    Street = street,
+                    City = city,
+                    Weight = envio.Weight,
+                    Volume = envio.Volume,
+                    Count = envio.Count,
+                    DeliveryDate = envio.DeliveryDate,
+                    Name1 = envio.Name1,
+                    ServiceAgent = envio.ServiceAgent,
+                    VehicleType = envio.VehicleType,
+                    ShipmentType = "",
+                    Description = "",
+                    OrderNumber = "",
+                    Fecha1 = "",
+                    Fecha2 = "",
+                    Tipo1 = "",
+                    Tipo2 = "",
+                    Factura = ""
+                });
+            }
+        }
+
+        private void CargarEnviosPlanB(List<Dictionary<string, object>> enviosRecords)
+        {
+            foreach (var row in enviosRecords)
+            {
+                var values = row.Values.ToList();
+                if (values.Count < 8) continue;
+
+                Models.EnviosRecords.Add(new EnvioData
+                {
+                    ShipmentNumber = NormalizarNumero(values[0]?.ToString() ?? ""),
+                    Name = values[1]?.ToString()?.Trim(),
+                    Delivery = NormalizarNumero(values[2]?.ToString() ?? ""),
+                    Weight = values.Count > 3 ? TryParseDouble(values[3]) : 0,
+                    Volume = values.Count > 4 ? TryParseDouble(values[4]) : 0,
+                    Count = values.Count > 5 ? TryParseCount(values[5]) : 0,
+                    IdCarga = values.Count > 6 ? values[6]?.ToString() : null,
+                    Secuencia = values.Count > 7 ? TryParseIntNull(values[7]) : null,
+                    DeliveryDate = values.Count > 11 ? values[11]?.ToString() : null,
+                    Name1 = values.Count > 13 ? values[13]?.ToString()?.Trim() : "",
+                    Vhc = values.Count > 15 ? values[15]?.ToString() : null,
+                    CostoEstandar = values.Count > 16 ? TryParseDoubleNull(values[16]) : null
+                });
+            }
+        }
+
+        private void CargarShiptoPlanB(List<Dictionary<string, object>> shiptoRecords)
+        {
+            foreach (var row in shiptoRecords)
+            {
+                var values = row.Values.ToList();
+                if (values.Count < 4) continue;
+
+                ShiptoRecords.Add(new CentroDestino
+                {
+                    ShipTo = NormalizarNumero(values[0]?.ToString() ?? ""),
+                    ShiptoName1 = values[1]?.ToString()?.Trim(),
+                    ShiptoStreet = values[2]?.ToString()?.Trim(),
+                    ShiptoCity = values[3]?.ToString()?.Trim()?.ToUpper()
+                });
+            }
+        }
+
+        // ============================================================
+        // PLAN B: Mapear EnviosRawView → estructura estándar (EnvioData)
+        // ✅ Weight dividido entre 1000
+        // ============================================================
+        public void ProcesarEnviosPlanB(string transportadoraFiltro = "")
+        {
+            Models.Resultados.Clear();
+            Errores.Clear();
+
+            var filas = EnviosRawView.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(transportadoraFiltro))
+            {
+                filas = filas.Where(f =>
+                    f.NombreCarrier?.Trim() == "ICOLTRANS LTDA" ||
+                    f.NombreCarrier?.Trim() == transportadoraFiltro);
+            }
+
+            foreach (var f in filas)
+            {
+                int? secuenciaFinal;
+
+                if (f.NumeroSecuencia == 200)
+                    secuenciaFinal = 200;
+                else if (f.NumeroSecuencia == 100)
+                    secuenciaFinal = null;
+                else
+                    continue;
+
+                string fechaFormateada = FormatearFechaDDMMYYYY(f.FechaLlegada);
+
+                Models.Resultados.Add(new EnvioData
+                {
+                    // #0 Shipment Number  ← ID de carga
+                    ShipmentNumber = f.IdCarga,
+                    // #1 Delivery         ← ID de envío
+                    Delivery = f.IdEnvio,
+                    // #2 Name
+                    Name = f.NombreUbicacionDestino,
+                    // #3 Shipment type
+                    ShipmentType = "ZTM7",
+                    // #4 Ship-to party
+                    ShipToParty = f.IdUbicacionDestino,
+                    // #5 Vehicle Type
+                    VehicleType = f.Vhc,
+                    // #6 Description
+                    Description = "",
+                    // #7 Service agent
+                    ServiceAgent = f.IdTransportista,
+                    // #8 Name 1
+                    Name1 = f.NombreCarrier,
+                    // #9 Delivery Date
+                    DeliveryDate = f.FechaLlegada,
+                    // #10 Weight  ← ✅ DIVIDIDO ENTRE 1000
+                    Weight = (f.PesoKG ?? 0) / 1000.0,
+                    // #11 Volume
+                    Volume = f.VolumenCUM,
+                    // #12 Count
+                    Count = f.Piezas,
+                    // #13 Order Number
+                    OrderNumber = "",
+                    // #14 Street
+                    Street = f.Street,
+                    // #15 City
+                    City = f.City,
+                    // #16 Fecha1
+                    Fecha1 = fechaFormateada,
+                    // #17 Fecha2
+                    Fecha2 = fechaFormateada,
+                    // #18 Tipo1
+                    Tipo1 = "CS",
+                    // #19 Tipo2
+                    Tipo2 = "CS",
+                    // #20 Factura     ← ID de envío
+                    Factura = f.IdEnvio,
+
+                    // Extras internos
+                    Secuencia = secuenciaFinal,
+                    IdCarga = f.IdCarga,
+                    CostoEstandar = TryParseDoubleNull(f.CostoEstandar),
+                    Vhc = f.Vhc
+                });
+            }
+
+            // ✅ Calcular Centro Destino (igual que flujo normal)
+            AgregarCentroDestino();
+        }
+
+        // ============================================================
+        // Helper: convierte "3/09/2026 23:30" → "03.09.2026"
+        // ============================================================
+        private string FormatearFechaDDMMYYYY(string? fechaOriginal)
+        {
+            if (string.IsNullOrWhiteSpace(fechaOriginal))
+                return "";
+
+            var limpio = fechaOriginal.Trim();
+            var parteFecha = limpio.Split(' ')[0];
+
+            string[] formatos = { "d/M/yyyy", "dd/MM/yyyy", "d/MM/yyyy", "dd/M/yyyy",
+                                  "yyyy-MM-dd", "d-M-yyyy", "dd-MM-yyyy",
+                                  "d.M.yyyy", "dd.MM.yyyy" };
+
+            if (DateTime.TryParseExact(parteFecha, formatos,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out DateTime fecha))
+            {
+                return fecha.ToString("dd.MM.yyyy");
+            }
+
+            if (DateTime.TryParse(parteFecha,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out DateTime fechaLibre))
+            {
+                return fechaLibre.ToString("dd.MM.yyyy");
+            }
+
+            return limpio;
+        }
+
+        // ============================================================
+        // PIPELINE
+        // ============================================================
+        public void ProcessData(string transportadoraFiltro = "")
         {
             Models.Resultados.Clear();
             Errores.Clear();
@@ -163,7 +567,7 @@ namespace GestorEnvios.Services
                 return;
             }
 
-            ProcesarDatos();
+            ProcesarDatos(transportadoraFiltro);
             AgregarCentroDestino();
             EliminarDuplicadosFactura();
             LimpiarSecuencias100();
@@ -172,8 +576,8 @@ namespace GestorEnvios.Services
         private void ValidarCiudades()
         {
             var ciudadesValidas = Models.CentrosRecords
-                .Where(c => !string.IsNullOrEmpty(c.Ciudad))
-                .Select(c => c.Ciudad?.ToUpper().Trim())
+                .Where(c => !string.IsNullOrEmpty(c.Ciudad) || !string.IsNullOrEmpty(c.ShiptoCity))
+                .Select(c => (c.Ciudad ?? c.ShiptoCity)!.ToUpper().Trim())
                 .ToHashSet();
 
             for (int i = 0; i < Models.DataRecords.Count; i++)
@@ -188,24 +592,24 @@ namespace GestorEnvios.Services
             }
         }
 
-        private void ProcesarDatos()
+        private void ProcesarDatos(string transportadoraFiltro = "")
         {
-            // Crear diccionario de envíos por Delivery
             var enviosDict = new Dictionary<string, List<EnvioInfo>>();
-            
+
             foreach (var envio in Models.EnviosRecords)
             {
                 if (!string.IsNullOrEmpty(envio.Delivery))
                 {
                     if (!enviosDict.ContainsKey(envio.Delivery))
                         enviosDict[envio.Delivery] = new List<EnvioInfo>();
-                    
+
                     enviosDict[envio.Delivery].Add(new EnvioInfo
                     {
                         IdCarga = envio.IdCarga ?? string.Empty,
                         Secuencia = envio.Secuencia,
                         Vhc = envio.Vhc ?? string.Empty,
-                        CostoEstandar = envio.CostoEstandar
+                        CostoEstandar = envio.CostoEstandar,
+                        Transportadora = envio.Name1 ?? ""
                     });
                 }
             }
@@ -217,13 +621,20 @@ namespace GestorEnvios.Services
                 if (enviosDict.ContainsKey(delivery))
                 {
                     var enviosList = enviosDict[delivery];
-                    
+
                     foreach (var envioInfo in enviosList)
                     {
+                        if (!string.IsNullOrEmpty(transportadoraFiltro))
+                        {
+                            var transportadora = envioInfo.Transportadora?.Trim() ?? "";
+                            if (transportadora != "ICOLTRANS LTDA" && transportadora != transportadoraFiltro)
+                                continue;
+                        }
+
                         if (envioInfo.Secuencia.HasValue && envioInfo.Secuencia.Value != 0)
                         {
                             var secuencia = envioInfo.Secuencia.Value;
-                            
+
                             if (secuencia == 200 || secuencia == 100)
                             {
                                 var registro = CrearRegistro(dataRecord, envioInfo, secuencia);
@@ -246,16 +657,14 @@ namespace GestorEnvios.Services
 
         private void AgregarCentroDestino()
         {
-            // Diccionario para guardar código y nombre
             var centrosDict = new Dictionary<string, (string Codigo, string Nombre)>();
-            
+
             foreach (var centro in Models.CentrosRecords)
             {
                 if (!string.IsNullOrEmpty(centro.Ciudad) && !centrosDict.ContainsKey(centro.Ciudad))
                 {
                     var codigo = centro.CodigoParaRecogidas ?? "";
                     var nombre = centro.Centro ?? "Validar_Ciudad_Destino";
-                    
                     centrosDict[centro.Ciudad] = (codigo, nombre);
                 }
             }
@@ -263,7 +672,7 @@ namespace GestorEnvios.Services
             foreach (var record in Models.Resultados.Where(r => r.Secuencia == 200))
             {
                 var ciudad = record.City?.ToUpper().Trim() ?? "";
-                
+
                 if (!string.IsNullOrEmpty(ciudad) && centrosDict.ContainsKey(ciudad))
                 {
                     var info = centrosDict[ciudad];
@@ -280,6 +689,9 @@ namespace GestorEnvios.Services
 
         private void EliminarDuplicadosFactura()
         {
+            if (Models.Resultados.All(r => string.IsNullOrWhiteSpace(r.Factura)))
+                return;
+
             var dictFactura = new Dictionary<string, int>();
             var dictRepetidas = new HashSet<string>();
 
@@ -291,9 +703,7 @@ namespace GestorEnvios.Services
                 if (dictFactura.ContainsKey(factura))
                 {
                     if (secuencia > dictFactura[factura])
-                    {
                         dictFactura[factura] = secuencia;
-                    }
                     dictRepetidas.Add(factura);
                 }
                 else
@@ -311,26 +721,18 @@ namespace GestorEnvios.Services
                 if (dictRepetidas.Contains(factura))
                 {
                     if (secuencia < dictFactura[factura])
-                    {
                         Models.Resultados.RemoveAt(i);
-                    }
                 }
             }
         }
 
         private void LimpiarSecuencias100()
         {
-            int contador100 = Models.Resultados.Count(r => r.Secuencia == 100);
-            System.Diagnostics.Debug.WriteLine($"Registros con secuencia 100 antes de limpiar: {contador100}");
-            
             foreach (var record in Models.Resultados.Where(r => r.Secuencia == 100).ToList())
             {
                 record.Secuencia = null;
                 record.IdCarga = null;
             }
-            
-            int contadorNull = Models.Resultados.Count(r => !r.Secuencia.HasValue);
-            System.Diagnostics.Debug.WriteLine($"Registros con secuencia null después de limpiar: {contadorNull}");
         }
 
         private EnvioData CrearRegistro(EnvioData data, EnvioInfo envioInfo, int secuencia)
@@ -369,21 +771,15 @@ namespace GestorEnvios.Services
         {
             int secuencia100 = 0;
             int secuencia200 = 0;
-            
+
             foreach (var record in Models.Resultados)
             {
                 if (!record.Secuencia.HasValue || record.Secuencia.Value == 100)
-                {
                     secuencia100++;
-                }
                 else if (record.Secuencia.Value == 200)
-                {
                     secuencia200++;
-                }
             }
-            
-            System.Diagnostics.Debug.WriteLine($"Conteo final - Secuencia100: {secuencia100}, Secuencia200: {secuencia200}");
-            
+
             return (secuencia100, secuencia200);
         }
 
@@ -391,7 +787,6 @@ namespace GestorEnvios.Services
         {
             int total = Models.Resultados.Count;
             var (secuencia100, secuencia200) = ContarSecuencias();
-            
             return (total, secuencia100, secuencia200);
         }
 
@@ -407,88 +802,106 @@ namespace GestorEnvios.Services
             return $"{downloadsPath}Corte_Procter&Gamble_{timestamp}.xlsx";
         }
 
-        // ✅ NUEVO MÉTODO: Normalizar números eliminando ceros a la izquierda
+        // ============================================================
+        // HELPERS
+        // ============================================================
         private string NormalizarNumero(string valor)
         {
             if (string.IsNullOrWhiteSpace(valor))
                 return string.Empty;
-            
-            // Eliminar espacios y caracteres especiales
+
             var limpio = valor.Trim().Replace(" ", "").Replace("-", "").Replace(".", "");
-            
-            // Intentar convertir a número y luego de vuelta a string para eliminar ceros a la izquierda
+
             if (long.TryParse(limpio, out long numeroLimpio))
-            {
                 return numeroLimpio.ToString();
-            }
-            
-            // Si no se puede convertir, devolver el original limpio
+
             return limpio;
         }
 
         private double TryParseDouble(object value)
         {
             if (value == null) return 0;
-            return double.TryParse(value.ToString(), out double result) ? result : 0;
-        }
 
-        private int TryParseInt(object value)
-        {
-            if (value == null) return 0;
-            return int.TryParse(value.ToString(), out int result) ? result : 0;
+            var str = value.ToString()?.Trim() ?? "";
+            str = str.Replace("$", "").Replace(" ", "").Replace(",", "");
+
+            if (double.TryParse(str, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                out double result))
+                return result;
+
+            return 0;
         }
 
         private int? TryParseIntNull(object value)
         {
             if (value == null) return null;
-            return int.TryParse(value.ToString(), out int result) ? result : (int?)null;
+
+            var str = value.ToString()?.Trim() ?? "";
+
+            if (int.TryParse(str, out int result))
+                return result;
+
+            if (double.TryParse(str, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                out double dResult))
+                return (int)dResult;
+
+            return null;
         }
 
         private double? TryParseDoubleNull(object value)
         {
             if (value == null) return null;
-            return double.TryParse(value.ToString(), out double result) ? result : (double?)null;
+
+            var str = value.ToString()?.Trim() ?? "";
+            str = str.Replace("$", "").Replace(" ", "").Replace(",", "");
+
+            if (double.TryParse(str, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                out double result))
+                return result;
+
+            return null;
         }
 
         private int TryParseCount(object value)
         {
             if (value == null) return 0;
-            
+
             var strValue = value.ToString()?.Trim() ?? "";
-            
+
             if (int.TryParse(strValue, out int intResult))
                 return intResult;
-            
-            if (double.TryParse(strValue, System.Globalization.NumberStyles.Any, 
-                                System.Globalization.CultureInfo.InvariantCulture, 
+
+            if (double.TryParse(strValue, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture,
                                 out double doubleResult))
             {
                 if (doubleResult < 0.001) return 0;
                 return (int)Math.Ceiling(doubleResult);
             }
-            
+
             return 0;
         }
 
         private double NormalizarPeso(double peso)
         {
             if (peso <= 0) return 0;
-            
+
             if (Math.Abs(peso % 1) < 0.0001)
-            {
                 return peso / 1000000.0;
-            }
-            
+
             return peso;
         }
     }
 
-    // Clase auxiliar para almacenar información de envíos
     public class EnvioInfo
     {
         public string IdCarga { get; set; } = string.Empty;
         public int? Secuencia { get; set; }
         public string Vhc { get; set; } = string.Empty;
         public double? CostoEstandar { get; set; }
+        public string Transportadora { get; set; } = string.Empty;
     }
 }

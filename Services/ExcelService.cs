@@ -14,52 +14,84 @@ namespace GestorEnvios.Services
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         }
 
-        // Método para leer todas las hojas de un archivo
+        // ============================================================
+        // Leer TODAS las hojas (incluye VeryHidden)
+        // ============================================================
         public Dictionary<string, List<Dictionary<string, object>>> ReadAllSheets(string filePath)
         {
             var result = new Dictionary<string, List<Dictionary<string, object>>>();
-            
+
             using var package = new ExcelPackage(new FileInfo(filePath));
-            
+
+            // ✅ Primera pasada: foreach normal (Visible + Hidden)
             foreach (var worksheet in package.Workbook.Worksheets)
             {
-                var sheetData = new List<Dictionary<string, object>>();
-                
-                if (worksheet.Dimension == null)
-                    continue;
+                if (worksheet.Dimension == null) continue;
 
-                int rowCount = worksheet.Dimension.Rows;
-                int colCount = worksheet.Dimension.Columns;
+                result[worksheet.Name] = LeerHoja(worksheet);
+            }
 
-                var headers = new List<string>();
-                for (int col = 1; col <= colCount; col++)
+            // ✅ Segunda pasada: intentar leer VeryHidden por índice
+            //    con try/catch para que no crashee si EPPlus lanza excepción
+            try
+            {
+                for (int i = 1; i <= package.Workbook.Worksheets.Count; i++)
                 {
-                    headers.Add(worksheet.Cells[1, col].Text);
-                }
-
-                for (int row = 2; row <= rowCount; row++)
-                {
-                    var rowData = new Dictionary<string, object>();
-                    for (int col = 1; col <= colCount; col++)
+                    ExcelWorksheet worksheet;
+                    try
                     {
-                        rowData[headers[col - 1]] = worksheet.Cells[row, col].Value ?? "";
+                        worksheet = package.Workbook.Worksheets[i];
                     }
-                    sheetData.Add(rowData);
-                }
+                    catch (IndexOutOfRangeException)
+                    {
+                        continue;
+                    }
 
-                result[worksheet.Name] = sheetData;
+                    if (worksheet == null) continue;
+                    if (worksheet.Dimension == null) continue;
+                    if (result.ContainsKey(worksheet.Name)) continue;
+
+                    result[worksheet.Name] = LeerHoja(worksheet);
+                }
+            }
+            catch
+            {
+                // Ignorar errores de la segunda pasada
             }
 
             return result;
         }
 
+        // ✅ Helper para leer una hoja
+        private List<Dictionary<string, object>> LeerHoja(ExcelWorksheet worksheet)
+        {
+            var sheetData = new List<Dictionary<string, object>>();
+
+            int rowCount = worksheet.Dimension.Rows;
+            int colCount = worksheet.Dimension.Columns;
+
+            var headers = new List<string>();
+            for (int col = 1; col <= colCount; col++)
+                headers.Add(worksheet.Cells[1, col].Text);
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                var rowData = new Dictionary<string, object>();
+                for (int col = 1; col <= colCount; col++)
+                    rowData[headers[col - 1]] = worksheet.Cells[row, col].Value ?? "";
+                sheetData.Add(rowData);
+            }
+
+            return sheetData;
+        }
+
         public List<Dictionary<string, object>> ReadExcel(string filePath)
         {
             var result = new List<Dictionary<string, object>>();
-            
+
             using var package = new ExcelPackage(new FileInfo(filePath));
             var worksheet = package.Workbook.Worksheets[0];
-            
+
             if (worksheet.Dimension == null)
                 return result;
 
@@ -68,17 +100,13 @@ namespace GestorEnvios.Services
 
             var headers = new List<string>();
             for (int col = 1; col <= colCount; col++)
-            {
                 headers.Add(worksheet.Cells[1, col].Text);
-            }
 
             for (int row = 2; row <= rowCount; row++)
             {
                 var rowData = new Dictionary<string, object>();
                 for (int col = 1; col <= colCount; col++)
-                {
                     rowData[headers[col - 1]] = worksheet.Cells[row, col].Value ?? "";
-                }
                 result.Add(rowData);
             }
 
@@ -118,7 +146,6 @@ namespace GestorEnvios.Services
                 { "Costo Estándar", d => d.CostoEstandar },
                 { "Id Carga", d => d.IdCarga },
                 { "Centro Destino", d => d.CentroCodigo ?? d.CentroDestino }
-                //{ "Centro Destino", d => d.CentroDestino }
             };
 
             int col = 1;

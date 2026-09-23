@@ -17,5 +17,39 @@ namespace GestorEnvios.Models
         public string? Ciudad { get; set; }
         public string? Depto { get; set; }
         public string? CodigoParaRecogidas { get; set; }
+
+        // ✅ Solo para Plan B (hoja Db_Shipto)
+        public string? ShipTo { get; set; }
+        public string? ShiptoName1 { get; set; }
+        public string? ShiptoStreet { get; set; }
+        public string? ShiptoCity { get; set; }
+    }
+
+    // ================================================================
+    // Vista cruda de la hoja Envíos + Street/City (Plan B)
+    // ================================================================
+    public class EnvioRawView
+    {
+        public string? IdEnvio { get; set; }
+        public string? NombreUbicacionDestino { get; set; }
+        public string? IdUbicacionDestino { get; set; }
+        public double? PesoKG { get; set; }
+        public double? VolumenCUM { get; set; }
+        public int? Piezas { get; set; }
+        public string? IdCarga { get; set; }
+        public int? NumeroSecuencia { get; set; }
+        public string? IdUbicacionOrigen { get; set; }
+        public string? DireccionDestino { get; set; }
+        public string? Corredor { get; set; }
+        public string? FechaLlegada { get; set; }
+        public string? EstadoOperativo { get; set; }
+        public string? NombreCarrier { get; set; }
+        public string? IdTransportista { get; set; }
+        public string? Vhc { get; set; }
+        public string? CostoEstandar { get; set; }
+
+        // ✅ Traídas de Db_Shipto
+        public string? Street { get; set; }
+        public string? City { get; set; }
     }
 }

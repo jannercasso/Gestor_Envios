@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "cRPDdhjFFEE=",
+  "dgSpecHash": "SZAj5DXJTdc=",
   "success": true,
   "projectFilePath": "C:\\Users\\jcasso\\OneDrive - Industria Colombiana de Logistica y Transporte\\Escritorio\\Proyectos_C#\\GestorEnvios\\GestorEnvios.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\jcasso\\.nuget\\packages\\autoupdater.net.official\\1.9.2\\autoupdater.net.official.1.9.2.nupkg.sha512",
     "C:\\Users\\jcasso\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.2\\communitytoolkit.mvvm.8.4.2.nupkg.sha512",
     "C:\\Users\\jcasso\\.nuget\\packages\\epplus\\6.2.7\\epplus.6.2.7.nupkg.sha512",
     "C:\\Users\\jcasso\\.nuget\\packages\\epplus.interfaces\\6.1.1\\epplus.interfaces.6.1.1.nupkg.sha512",
@@ -16,7 +17,8 @@
     "C:\\Users\\jcasso\\.nuget\\packages\\microsoft.extensions.fileproviders.physical\\7.0.0\\microsoft.extensions.fileproviders.physical.7.0.0.nupkg.sha512",
     "C:\\Users\\jcasso\\.nuget\\packages\\microsoft.extensions.filesystemglobbing\\7.0.0\\microsoft.extensions.filesystemglobbing.7.0.0.nupkg.sha512",
     "C:\\Users\\jcasso\\.nuget\\packages\\microsoft.extensions.primitives\\7.0.0\\microsoft.extensions.primitives.7.0.0.nupkg.sha512",
-    "C:\\Users\\jcasso\\.nuget\\packages\\microsoft.io.recyclablememorystream\\2.2.1\\microsoft.io.recyclablememorystream.2.2.1.nupkg.sha512"
+    "C:\\Users\\jcasso\\.nuget\\packages\\microsoft.io.recyclablememorystream\\2.2.1\\microsoft.io.recyclablememorystream.2.2.1.nupkg.sha512",
+    "C:\\Users\\jcasso\\.nuget\\packages\\microsoft.web.webview2\\1.0.2592.51\\microsoft.web.webview2.1.0.2592.51.nupkg.sha512"
   ],
   "logs": []
 }
