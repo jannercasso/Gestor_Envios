@@ -3,7 +3,9 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;   // ✅ NUEVO - Para Ellipse
 using Microsoft.Win32;
 using GestorEnvios.Services;
 using GestorEnvios.Views;
@@ -73,9 +75,11 @@ namespace GestorEnvios
     public partial class MainWindow : Window
     {
         private readonly DataProcessor _processor;
+        private readonly ShiptoService _shiptoService;   // ✅ NUEVO
         private List<EnvioData>? _ultimosDatos;
         private List<EnvioData>? _datosFiltradosPorTransportadora;
         private bool _modoPlanB = false;
+        private bool _conexionBD = false;   // ✅ NUEVO
 
         private const string ICOLTRANS = "ICOLTRANS LTDA";
 
@@ -83,13 +87,113 @@ namespace GestorEnvios
         {
             InitializeComponent();
             _processor = new DataProcessor();
+            _shiptoService = new ShiptoService();   // ✅ NUEVO
 
             btnVerVistaPrevia.Visibility = Visibility.Collapsed;
+
+            // ✅ El botón Cargar Envíos arranca OCULTO y DESHABILITADO por seguridad
+            btnCargarEnvios.Visibility = Visibility.Collapsed;
+            btnCargarEnvios.IsEnabled = false;
 
             chkFiltrarTransportadora.IsEnabled = false;
             cmbTransportadoras.IsEnabled = false;
 
             cmbTransportadoras.ItemsSource = new List<TransportadoraItem>();
+
+            // ✅ Verificar conexión AL INICIAR la app
+            VerificarConexionBD();
+        }
+
+        // ============================================================
+        // ✅ SEMÁFORO DE CONEXIÓN
+        // ============================================================
+        private void VerificarConexionBD()
+        {
+            try
+            {
+                _conexionBD = _shiptoService.VerificarConexion();
+            }
+            catch
+            {
+                _conexionBD = false;
+            }
+
+            AplicarEstadoConexion(_conexionBD);
+        }
+
+        private void AplicarEstadoConexion(bool conectado)
+        {
+            if (conectado)
+            {
+                // 🟢 Verde = Conectado
+                ellipseConexion.Fill = new SolidColorBrush(Color.FromRgb(0x32, 0xAC, 0x5C));
+                ellipseConexion.ToolTip = "Conectado";
+                statusBarConexion.Text = "";
+                statusBarConexion.Foreground = new SolidColorBrush(Color.FromRgb(0x32, 0xAC, 0x5C));
+
+                // ✅ Desbloquear botones
+                btnSeleccionarArchivo.IsEnabled = true;
+                btnProcesar.IsEnabled = _processor.Models.DataRecords.Any() || _ultimosDatos != null;
+                btnLimpiar.IsEnabled = _processor.Models.DataRecords.Any() || _ultimosDatos != null;
+                btnCargarEnvios.IsEnabled = btnCargarEnvios.Visibility == Visibility.Visible;
+            }
+            else
+            {
+                // 🔴 Rojo = Sin conexión
+                ellipseConexion.Fill = new SolidColorBrush(Color.FromRgb(0xE5, 0x39, 0x35));
+                ellipseConexion.ToolTip = "Sin conexión";
+                statusBarConexion.Text = "Sin conexión a la base de datos.";
+                statusBarConexion.Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0x39, 0x35));
+
+                // ✅ Bloquear TODOS los botones
+                btnSeleccionarArchivo.IsEnabled = false;
+                btnProcesar.IsEnabled = false;
+                btnLimpiar.IsEnabled = false;
+                btnCargarEnvios.IsEnabled = false;
+                btnVerVistaPrevia.IsEnabled = false;
+                chkFiltrarTransportadora.IsEnabled = false;
+                cmbTransportadoras.IsEnabled = false;
+            }
+        }
+
+        // ✅ Muestra alerta si no hay conexión
+        private bool BloquearSiSinConexion()
+        {
+            if (!_conexionBD)
+            {
+                MessageBox.Show(
+                    "Sin conexión a la base de datos.\n\nContacte al administrador.",
+                    "Sin conexión",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return true;   // Está bloqueado
+            }
+            return false;   // NO está bloqueado
+        }
+
+        // ============================================================
+        // ✅ COMANDO SECRETO: Ctrl + Shift + E
+        // ============================================================
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.E &&
+                Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                bool estaOculto = btnCargarEnvios.Visibility != Visibility.Visible;
+
+                btnCargarEnvios.Visibility = estaOculto
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
+                // ✅ Solo habilitar el botón si hay conexión a la BD
+                btnCargarEnvios.IsEnabled = estaOculto && _conexionBD;
+
+                statusBarText.Text = estaOculto
+                    ? "🔓 Cargar Envios activado"
+                    : "🔒 Cargar Envios desactivado";
+
+                e.Handled = true;
+            }
         }
 
         public void MostrarBotonVistaPrevia(bool mostrar)
@@ -104,7 +208,6 @@ namespace GestorEnvios
         {
             var transportadoras = new Dictionary<string, int>();
 
-            // ✅ MODO PLAN B → usar EnviosRawView
             if (_modoPlanB && _processor.EnviosRawView.Any())
             {
                 foreach (var record in _processor.EnviosRawView)
@@ -121,7 +224,6 @@ namespace GestorEnvios
             }
             else
             {
-                // Flujo normal (Data + Envíos + Centros)
                 var deliveriesData = _processor.Models.DataRecords
                     .Select(r => r.Delivery?.Trim() ?? "")
                     .Where(d => !string.IsNullOrEmpty(d))
@@ -172,6 +274,9 @@ namespace GestorEnvios
         // ============================================================
         private void BtnSeleccionarArchivo_Click(object sender, RoutedEventArgs e)
         {
+            // ✅ Verificar conexión antes de proceder
+            if (BloquearSiSinConexion()) return;
+
             var dialog = new OpenFileDialog
             {
                 Title = "Seleccionar archivo Excel con 3 hojas",
@@ -221,13 +326,16 @@ namespace GestorEnvios
         }
 
         // ============================================================
-        // PLAN B: Cargar solo Envíos + Db_Shipto + Centros
+        // PLAN B
         // ============================================================
         private void BtnCargarEnvios_Click(object sender, RoutedEventArgs e)
         {
+            // ✅ Verificar conexión antes de proceder
+            if (BloquearSiSinConexion()) return;
+
             var dialog = new OpenFileDialog
             {
-                Title = "Seleccionar archivo con hojas Envíos y Db_Shipto",
+                Title = "Seleccionar archivo con hoja Envíos y Centros",
                 Filter = "Archivos Excel|*.xlsx;*.xls"
             };
 
@@ -248,7 +356,7 @@ namespace GestorEnvios
                 {
                     var mensaje = "Se detectaron las siguientes ciudades no encontradas:\n\n" +
                                   string.Join("\n", _processor.CiudadesNoEncontradas) +
-                                  "\n\nValidar la hoja Db_Shipto y ejecutar nuevamente.";
+                                  "\n\nValidar la tabla Shipto_Procter y ejecutar nuevamente.";
                     MessageBox.Show(mensaje, "Validación de Ciudades",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                     txtStatus.Text = "❌ Error ciudades";
@@ -258,9 +366,12 @@ namespace GestorEnvios
 
                 if (_processor.EntregasNoEncontradas.Any())
                 {
-                    var mensaje = "Ship-to no encontrados en Db_Shipto:\n\n" +
-                                  string.Join("\n", _processor.EntregasNoEncontradas);
-                    MessageBox.Show(mensaje, "Validación de Ship-to",
+                    var totalErrores = _processor.EntregasNoEncontradas.Count;
+                    var mensaje = $"⚠️ {totalErrores} Ship-to no encontrados en Shipto_Procter:\n\n" +
+                                  string.Join("\n", _processor.EntregasNoEncontradas) +
+                                  "\n\nLas filas afectadas están marcadas en ROJO en la tabla.\n" +
+                                  "Puedes procesar el resto, pero revisa esos registros.";
+                    MessageBox.Show(mensaje, "Advertencia - Ship-to no encontrados",
                                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
 
@@ -279,7 +390,7 @@ namespace GestorEnvios
                 statusBarText.Text = $"✅ Carga completada. {_processor.EnviosRawView.Count} registros mostrados";
 
                 MessageBox.Show(
-                    $"Carga terminada (Plan B - solo Envíos).\n\n" +
+                    $"Carga terminada.\n\n" +
                     $"Registros mostrados: {_processor.EnviosRawView.Count}\n" +
                     $"Presiona 'Procesar Datos' para generar la vista previa.",
                     "Carga Completada", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -291,6 +402,20 @@ namespace GestorEnvios
                 chkFiltrarTransportadora.IsEnabled = true;
                 cmbTransportadoras.IsEnabled = false;
             }
+            catch (Microsoft.Data.SqlClient.SqlException)
+            {
+                // ✅ Si se cae la conexión, marcar el semáforo en rojo
+                _conexionBD = false;
+                AplicarEstadoConexion(false);
+
+                MessageBox.Show(
+                    "Sin conexión a la base de datos.\n\nContacte al administrador.",
+                    "Sin conexión",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                txtStatus.Text = "❌ Sin conexión";
+                statusBarText.Text = "❌ Sin conexión a la base de datos";
+            }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error: {ex.Message}", "Error",
@@ -300,7 +425,6 @@ namespace GestorEnvios
             }
         }
 
-        // ✅ Al marcar el check, filtra INMEDIATAMENTE con la transportadora ya seleccionada
         private void ChkFiltrarTransportadora_Checked(object sender, RoutedEventArgs e)
         {
             cmbTransportadoras.IsEnabled = true;
@@ -311,7 +435,6 @@ namespace GestorEnvios
         {
             cmbTransportadoras.IsEnabled = false;
 
-            // ✅ Plan B: restaurar todas las filas en dgEnviosRaw
             if (_modoPlanB)
             {
                 dgEnviosRaw.ItemsSource = null;
@@ -321,7 +444,6 @@ namespace GestorEnvios
                 return;
             }
 
-            // Flujo normal
             MostrarTodosLosDatos();
         }
 
@@ -331,16 +453,12 @@ namespace GestorEnvios
                 AplicarFiltroTransportadora();
         }
 
-        // ✅ Filtro por transportadora (Plan B filtra dgEnviosRaw; flujo normal filtra dgDatos)
         private void AplicarFiltroTransportadora()
         {
             if (cmbTransportadoras.SelectedItem == null) return;
 
             var transportadoraSeleccionada = ((TransportadoraItem)cmbTransportadoras.SelectedItem).Key;
 
-            // ========================================================
-            // ✅ MODO PLAN B: filtrar directamente el dgEnviosRaw
-            // ========================================================
             if (_modoPlanB)
             {
                 var filtrados = _processor.EnviosRawView
@@ -354,9 +472,6 @@ namespace GestorEnvios
                 return;
             }
 
-            // ========================================================
-            // FLUJO NORMAL
-            // ========================================================
             if (_ultimosDatos == null || !_ultimosDatos.Any()) return;
 
             _datosFiltradosPorTransportadora = _ultimosDatos
@@ -384,6 +499,11 @@ namespace GestorEnvios
         // ============================================================
         private void BtnProcesar_Click(object sender, RoutedEventArgs e)
         {
+            // ✅ Verificar conexión AL PROCESAR (por si se cayó)
+            VerificarConexionBD();
+
+            if (BloquearSiSinConexion()) return;
+
             try
             {
                 btnProcesar.IsEnabled = false;
@@ -395,9 +515,6 @@ namespace GestorEnvios
                 if (chkFiltrarTransportadora.IsChecked == true && cmbTransportadoras.SelectedItem != null)
                     transportadoraSeleccionada = ((TransportadoraItem)cmbTransportadoras.SelectedItem).Key;
 
-                // ========================================================
-                // ✅ MODO PLAN B: solo vista previa
-                // ========================================================
                 if (_modoPlanB)
                 {
                     _processor.ProcesarEnviosPlanB(transportadoraSeleccionada);
@@ -408,14 +525,14 @@ namespace GestorEnvios
                     var (count, count100, count200) = _processor.ObtenerResumenCompleto();
 
                     btnProcesar.IsEnabled = true;
-                    txtStatus.Text = "✅ Completado (Envíos)";
+                    txtStatus.Text = "✅ Completado";
                     statusBarText.Text = $"✅ Proceso completado. {count} registros";
 
                     MessageBox.Show(
-                        $"Proceso terminado (Plan B - Envíos mapeado a estructura estándar).\n\n" +
+                        $"Proceso Terminado.\n\n" +
                         $"Total: {count} registros\n" +
                         $"Secuencia 200: {count200}\n" +
-                        $"Secuencia 100 (sin número): {count100}",
+                        $"Secuencia 100: {count100}",
                         "Proceso Completado", MessageBoxButton.OK, MessageBoxImage.Information);
 
                     MostrarBotonVistaPrevia(false);
@@ -423,9 +540,7 @@ namespace GestorEnvios
                     return;
                 }
 
-                // ========================================================
-                // FLUJO NORMAL: solo vista previa
-                // ========================================================
+                // FLUJO NORMAL
                 _processor.ProcessData(transportadoraSeleccionada);
 
                 if (_processor.CiudadesNoEncontradas.Any())
@@ -444,16 +559,13 @@ namespace GestorEnvios
 
                 if (_processor.EntregasNoEncontradas.Any())
                 {
-                    var mensaje = "Se detectaron las siguientes inconsistencias:\n\n" +
-                                 string.Join("\n", _processor.EntregasNoEncontradas);
+                    var totalErrores = _processor.EntregasNoEncontradas.Count;
+                    var mensaje = $"⚠️ {totalErrores} cartaportes no encontrados en Envíos:\n\n" +
+                                  string.Join("\n", _processor.EntregasNoEncontradas) +
+                                  "\n\nSe procesarán los que sí tienen match.";
 
-                    MessageBox.Show(mensaje, "Validación de Cartaportes",
+                    MessageBox.Show(mensaje, "Advertencia - Cartaportes no encontrados",
                                   MessageBoxButton.OK, MessageBoxImage.Warning);
-
-                    _processor.Models.Resultados.Clear();
-                    btnProcesar.IsEnabled = true;
-                    txtStatus.Text = "❌ Error entregas";
-                    return;
                 }
 
                 _ultimosDatos = _processor.Models.Resultados.ToList();
@@ -484,6 +596,9 @@ namespace GestorEnvios
 
         private void BtnLimpiar_Click(object sender, RoutedEventArgs e)
         {
+            // ✅ Verificar conexión antes de proceder
+            if (BloquearSiSinConexion()) return;
+
             var result = MessageBox.Show("¿Limpiar todos los datos?", "Confirmar",
                                        MessageBoxButton.YesNo, MessageBoxImage.Question);
 
@@ -528,6 +643,9 @@ namespace GestorEnvios
 
         private void BtnVerVistaPrevia_Click(object sender, RoutedEventArgs e)
         {
+            // ✅ Verificar conexión antes de proceder
+            if (BloquearSiSinConexion()) return;
+
             if (_ultimosDatos != null && _ultimosDatos.Any())
             {
                 MostrarBotonVistaPrevia(false);

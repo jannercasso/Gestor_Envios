@@ -6,7 +6,8 @@
         Icon="/Procter.ico"
         WindowState="Maximized"
         Height="700" Width="1100"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        KeyDown="Window_KeyDown">
 
     <Window.Resources>
         <local:DarkenColorConverter x:Key="DarkenColorConverter"/>
@@ -271,6 +272,7 @@
                          Margin="0,0,10,0"/>
 
                 <Button Grid.Row="0" Grid.Column="1"
+                        x:Name="btnSeleccionarArchivo"
                         Content="📂 Seleccionar"
                         Background="#2196F3"
                         Padding="10,5"
@@ -306,13 +308,16 @@
                     Margin="10,0,0,0"
                     Visibility="Collapsed"/>
 
+            <!-- ✅ Botón Plan B: OCULTO Y DESHABILITADO por defecto -->
             <Button x:Name="btnCargarEnvios"
                     Content="📦 Cargar Envíos"
                     Background="#FF9800"
                     Padding="15,8"
                     Click="BtnCargarEnvios_Click"
                     Width="160"
-                    Margin="10,0,0,0"/>
+                    Margin="10,0,0,0"
+                    Visibility="Collapsed"
+                    IsEnabled="False"/>
 
             <CheckBox x:Name="chkFiltrarTransportadora"
                       Content="🚚 Filtrar por Transportadora"
@@ -439,21 +444,21 @@
 
             <!-- DataGrid PLAN B -->
             <DataGrid x:Name="dgEnviosRaw"
-                      AutoGenerateColumns="False"
-                      Margin="0,0,0,5"
-                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      CanUserReorderColumns="True"
-                      CanUserResizeColumns="True"
-                      CanUserSortColumns="True"
-                      GridLinesVisibility="All"
-                      RowHeaderWidth="0"
-                      MinColumnWidth="100"
-                      MaxColumnWidth="300"
-                      IsReadOnly="True"
-                      Visibility="Collapsed">
+          AutoGenerateColumns="False"
+          Margin="0,0,0,5"
+          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+          ScrollViewer.VerticalScrollBarVisibility="Auto"
+          CanUserAddRows="False"
+          CanUserDeleteRows="False"
+          CanUserReorderColumns="True"
+          CanUserResizeColumns="True"
+          CanUserSortColumns="True"
+          GridLinesVisibility="All"
+          RowHeaderWidth="0"
+          MinColumnWidth="100"
+          MaxColumnWidth="300"
+          IsReadOnly="True"
+          Visibility="Collapsed">
 
                 <DataGrid.Resources>
                     <Style TargetType="ScrollViewer">
@@ -477,17 +482,27 @@
                             </Trigger>
                         </Style.Triggers>
                     </Style>
+                    <!-- ✅ Fila: rojo si TieneError, si no los colores normales -->
                     <Style TargetType="DataGridRow">
                         <Setter Property="Background" Value="White"/>
                         <Style.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="#FF9800"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="#FFB74D"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#FF9800"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+
+                            <!-- ✅ Filas con error → rojo SIEMPRE + ToolTip SOLO en estas filas -->
+                            <DataTrigger Binding="{Binding TieneError}" Value="True">
+                                <Setter Property="Background" Value="#FFCDD2"/>
+                                <Setter Property="Foreground" Value="#B71C1C"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <!-- ✅ ToolTip SOLO cuando hay error -->
+                                <Setter Property="ToolTip" Value="{Binding MensajeError}"/>
+                            </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </DataGrid.Resources>
@@ -519,10 +534,10 @@
                     <DataGridTextColumn Header="ID de carga" Binding="{Binding IdCarga}" Width="110"/>
                     <DataGridTextColumn Header="Número de secuencia" Binding="{Binding NumeroSecuencia}" Width="130"/>
                     <DataGridTextColumn Header="ID de ubicación de origen" Binding="{Binding IdUbicacionOrigen}" Width="160"/>
-                    <DataGridTextColumn Header="Dirección de destino" Binding="{Binding DireccionDestino}" Width="220"/>
-                    <DataGridTextColumn Header="Corredor" Binding="{Binding Corredor}" Width="140"/>
-                    <DataGridTextColumn Header="Fecha/hora de llegada de la entrega (DD/MM/AAAA HH:MM)" Binding="{Binding FechaLlegada}" Width="220"/>
-                    <DataGridTextColumn Header="Estado operativo" Binding="{Binding EstadoOperativo}" Width="150"/>
+                    <!--<DataGridTextColumn Header="Dirección de destino" Binding="{Binding DireccionDestino}" Width="220"/> -->
+                    <!--<DataGridTextColumn Header="Corredor" Binding="{Binding Corredor}" Width="140"/> -->
+                    <!--<DataGridTextColumn Header="Fecha/hora de llegada de la entrega (DD/MM/AAAA HH:MM)" Binding="{Binding FechaLlegada}" Width="220"/> -->
+                    <!--<DataGridTextColumn Header="Estado operativo" Binding="{Binding EstadoOperativo}" Width="150"/> -->
                     <DataGridTextColumn Header="Nombre carrier" Binding="{Binding NombreCarrier}" Width="140"/>
                     <DataGridTextColumn Header="ID del transportista" Binding="{Binding IdTransportista}" Width="140"/>
                     <DataGridTextColumn Header="Vhc" Binding="{Binding Vhc}" Width="80"/>
@@ -533,6 +548,23 @@
         </Grid>
 
         <StatusBar Grid.Row="4">
+            <!-- ✅ Semáforo de conexión -->
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse x:Name="ellipseConexion"
+                             Width="12"
+                             Height="12"
+                             Fill="Gray"
+                             VerticalAlignment="Center"
+                             Margin="0,0,8,0"/>
+                    <TextBlock x:Name="statusBarConexion"
+                               Text=""
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold"
+                               Margin="0,0,15,0"/>
+                </StackPanel>
+            </StatusBarItem>
+
             <StatusBarItem>
                 <TextBlock x:Name="statusBarText" Text="Selecciona un archivo"/>
             </StatusBarItem>

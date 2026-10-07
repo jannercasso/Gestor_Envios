@@ -1,36 +1,37 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <ApplicationIcon>Procter.ico</ApplicationIcon>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<ApplicationIcon>Procter.ico</ApplicationIcon>
+	</PropertyGroup>
 
-  <!-- ✅ VERSIÓN DE LA APP (CRÍTICO para AutoUpdater) -->
-  <PropertyGroup>
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
-    <Product>Gestor de Envíos Procter</Product>
-    <Company>ICOLTRANS LTDA</Company>
-    <Copyright>Copyright © ICOLTRANS LTDA</Copyright>
-  </PropertyGroup>
+	<!-- ✅ VERSIÓN DE LA APP (CRÍTICO para AutoUpdater) -->
+	<PropertyGroup>
+		<Version>1.1.0</Version>
+		<AssemblyVersion>1.1.0</AssemblyVersion>
+		<FileVersion>1.1.0</FileVersion>
+		<Product>Gestor de Envíos Procter</Product>
+		<Company>ICOLTRANS LTDA</Company>
+		<Copyright>Copyright © ICOLTRANS LTDA</Copyright>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="EPPlus" Version="6.2.7" />
-    <!-- ✅ AutoUpdater.NET para actualizaciones automáticas -->
-    <PackageReference Include="AutoUpdater.NET.Official" Version="1.9.2" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+		<PackageReference Include="EPPlus" Version="6.2.7" />
+		<PackageReference Include="AutoUpdater.NET.Official" Version="1.9.2" />
+		<!-- ✅ Cliente SQL Server -->
+		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" />
+	</ItemGroup>
 
-  <!-- Sección Del Icono De Escritorio -->
-  <ItemGroup>
-    <Content Include="Procter.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<!-- Sección Del Icono De Escritorio -->
+	<ItemGroup>
+		<Content Include="Procter.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
 </Project>
